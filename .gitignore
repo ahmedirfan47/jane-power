@@ -32,3 +32,4 @@ coverage/
 
 # misc
 *.tsbuildinfo
+errors.txt
