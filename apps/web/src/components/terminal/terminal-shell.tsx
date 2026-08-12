@@ -1,0 +1,74 @@
+"use client";
+
+import type { ChartPanelConfig } from "@jane-power/shared";
+import { useWorkspaceStore } from "@/stores/workspace";
+import { MarketEngine } from "./market-engine";
+import { CommandBar } from "./command-bar";
+import { Watchlist } from "./watchlist";
+import { TickerTape } from "./ticker-tape";
+import { ChartPanel } from "./chart-panel";
+
+function useCellSize(chart: ChartPanelConfig) {
+  const { charts, focusedIds } = useWorkspaceStore();
+  const count = charts.length;
+  const f = focusedIds.length;
+  const isF = focusedIds.includes(chart.id);
+
+  if (f === 0) {
+    const eq: Record<number, { basis: string; height: string }> = {
+      1: { basis: "100%", height: "100%" },
+      2: { basis: "50%", height: "100%" },
+      4: { basis: "50%", height: "50%" },
+      6: { basis: "33.333%", height: "50%" },
+      8: { basis: "25%", height: "50%" },
+    };
+    return { ...(eq[count] ?? { basis: "50%", height: "50%" }), order: 0 };
+  }
+
+  const u = count - f;
+  if (isF) {
+    const basis = f === 1 ? "100%" : f === 2 ? "50%" : "33.333%";
+    return { basis, height: u > 0 ? "66%" : "100%", order: 0 };
+  }
+  const ub = u === 1 ? "100%" : u === 2 ? "50%" : u <= 3 ? "33.333%" : u <= 4 ? "25%" : "20%";
+  return { basis: ub, height: "34%", order: 1 };
+}
+
+function Cell({ chart }: { chart: ChartPanelConfig }) {
+  const size = useCellSize(chart);
+  return (
+    <div
+      className="min-h-0 min-w-0 p-1 transition-[flex-basis,height] duration-[450ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
+      style={{ flexBasis: size.basis, height: size.height, order: size.order }}
+    >
+      <ChartPanel chart={chart} />
+    </div>
+  );
+}
+
+function ChartGrid() {
+  const charts = useWorkspaceStore((s) => s.charts);
+  return (
+    <main className="min-w-0 flex-1 p-1">
+      <div className="flex h-full flex-wrap content-stretch">
+        {charts.map((c) => (
+          <Cell key={c.id} chart={c} />
+        ))}
+      </div>
+    </main>
+  );
+}
+
+export function TerminalShell({ email, role }: { email: string; role: string }) {
+  return (
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <MarketEngine />
+      <CommandBar email={email} role={role} />
+      <div className="flex min-h-0 flex-1">
+        <Watchlist />
+        <ChartGrid />
+      </div>
+      <TickerTape />
+    </div>
+  );
+}

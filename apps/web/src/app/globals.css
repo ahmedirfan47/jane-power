@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@theme {
+  /* neutrals — a cool near-black scale, five real steps */
+  --color-void: #08090c;
+  --color-bg: #0b0d12;
+  --color-surface: #0f1218;
+  --color-surface-2: #14181f;
+  --color-elevated: #191e27;
+  --color-hair: #212834;
+  --color-hair-soft: #171c24;
+
+  /* ink */
+  --color-ink: #e8ebf0;
+  --color-ink-dim: #b3bac6;
+  --color-mute: #737b89;
+  --color-mute-2: #454d5a;
+
+  /* signature — gold, drawn from the instrument */
+  --color-gold: #e0a43c;
+  --color-gold-hi: #f6c368;
+
+  /* semantics — tuned for dark, not neon */
+  --color-bull: #23b483;
+  --color-bull-hi: #35d89b;
+  --color-bear: #e2544f;
+  --color-bear-hi: #ff6f6a;
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-void);
+  /* faint atmosphere — a warm gold wash top-right, nothing more */
+  background-image: radial-gradient(
+    900px 420px at 82% -8%,
+    color-mix(in srgb, var(--color-gold) 6%, transparent),
+    transparent 60%
+  );
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-gold) 32%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
+  outline-offset: 1px;
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+/* scrollbars — thin, part of the furniture */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-elevated);
+  border-radius: 5px;
+  border: 2px solid var(--color-void);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2b333f;
+}
+
+/* live-price flash cues */
+@keyframes flashUp {
+  from {
+    background: color-mix(in srgb, var(--color-bull) 26%, transparent);
+  }
+  to {
+    background: transparent;
+  }
+}
+@keyframes flashDown {
+  from {
+    background: color-mix(in srgb, var(--color-bear) 26%, transparent);
+  }
+  to {
+    background: transparent;
+  }
+}
+.flash-up {
+  animation: flashUp 0.45s ease-out;
+}
+.flash-down {
+  animation: flashDown 0.45s ease-out;
+}
+
+/* ticker marquee */
+@keyframes tape {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
