@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Circle, X } from "lucide-react";
+import { Circle, Search, X } from "lucide-react";
 import { useWorkspaceStore, type LayoutCount } from "@/stores/workspace";
+import { useUiStore } from "@/stores/ui";
 import { sessionInfo } from "@/lib/market/engine";
 import { signOut } from "@/lib/actions/auth";
 
@@ -11,6 +12,7 @@ const SESSIONS = ["SYD", "TYO", "LDN", "NY"];
 
 export function CommandBar({ email, role }: { email: string; role: string }) {
   const { layout, setLayout, focusedIds, clearFocus } = useWorkspaceStore();
+  const setPalette = useUiStore((s) => s.setPalette);
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -24,12 +26,22 @@ export function CommandBar({ email, role }: { email: string; role: string }) {
   const utc = now ? now.toISOString().slice(11, 19) : "--:--:--";
 
   return (
-    <header className="flex h-11 shrink-0 items-center gap-4 border-b border-hair bg-surface px-3">
+    <header className="flex h-11 shrink-0 items-center gap-3 border-b border-hair bg-surface px-3">
       <div className="flex items-baseline gap-2">
         <span className="text-gold">◆</span>
         <span className="font-mono text-[13px] font-bold tracking-[0.14em]">JANE-POWER</span>
-        <span className="font-mono text-[8.5px] tracking-[0.22em] text-mute max-sm:hidden">TERMINAL</span>
       </div>
+
+      <button
+        onClick={() => setPalette(true)}
+        className="group flex items-center gap-2 rounded-md border border-hair bg-bg px-2.5 py-1.5 text-mute transition-colors hover:border-gold/40 max-sm:hidden"
+      >
+        <Search size={12} />
+        <span className="text-[11px]">Search markets</span>
+        <kbd className="ml-3 rounded border border-hair-soft bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] text-mute-2">
+          ⌘K
+        </kbd>
+      </button>
 
       <div className="flex items-center gap-1">
         {LAYOUTS.map((n) => (
@@ -51,7 +63,7 @@ export function CommandBar({ email, role }: { email: string; role: string }) {
             onClick={clearFocus}
             className="ml-1 flex items-center gap-1 rounded-md border border-bear/30 bg-bear/10 px-2 py-1 text-[10px] font-semibold text-bear-hi"
           >
-            <X size={11} /> reset focus
+            <X size={11} /> reset
           </button>
         )}
       </div>

@@ -4,6 +4,7 @@ import type { ChartPanelConfig } from "@jane-power/shared";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { MarketEngine } from "./market-engine";
 import { CommandBar } from "./command-bar";
+import { CommandPalette } from "./command-palette";
 import { Watchlist } from "./watchlist";
 import { TickerTape } from "./ticker-tape";
 import { ChartPanel } from "./chart-panel";
@@ -69,6 +70,7 @@ export function TerminalShell({ email, role }: { email: string; role: string }) 
         <ChartGrid />
       </div>
       <TickerTape />
+      <CommandPalette />
     </div>
   );
 }
