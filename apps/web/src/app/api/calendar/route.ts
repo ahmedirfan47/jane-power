@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,16 +35,33 @@ function normalizeImpact(v?: string): CalendarEvent["impact"] {
   return "low";
 }
 
-export async function GET() {
+let cache: { at: number; events: CalendarEvent[] } = { at: 0, events: [] };
+const TTL_MS = 900_000; // upstream allows only 2 pulls / 5 min
+
+export async function GET(request: Request) {
+  const limited = rateLimit(clientKey(request, "calendar"), 40, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { events: cache.events, error: "rate_limited" },
+      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "60" } },
+    );
+  }
+
+  if (Date.now() - cache.at < TTL_MS && cache.events.length) {
+    return NextResponse.json(
+      { events: cache.events, cached: true },
+      { headers: { "Cache-Control": "public, s-maxage=900, stale-while-revalidate=1800" } },
+    );
+  }
+
   try {
     const res = await fetch(FEED, {
       headers: { "User-Agent": "jane-power/1.0" },
-      next: { revalidate: 900 },
+      cache: "no-store",
     });
-
     if (!res.ok) {
       return NextResponse.json(
-        { events: [], error: "upstream", status: res.status },
+        { events: cache.events, error: "upstream", status: res.status },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -51,7 +69,7 @@ export async function GET() {
     const text = await res.text();
     if (text.trim().startsWith("<")) {
       return NextResponse.json(
-        { events: [], error: "rate_limited" },
+        { events: cache.events, error: "rate_limited_upstream" },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -70,13 +88,14 @@ export async function GET() {
         actual: e.actual ?? "",
       }));
 
+    if (events.length) cache = { at: Date.now(), events };
     return NextResponse.json(
       { events },
-      { headers: { "Cache-Control": "public, max-age=0, s-maxage=900" } },
+      { headers: { "Cache-Control": "public, s-maxage=900, stale-while-revalidate=1800" } },
     );
   } catch {
     return NextResponse.json(
-      { events: [], error: "fetch_failed" },
+      { events: cache.events, error: "fetch_failed" },
       { headers: { "Cache-Control": "no-store" } },
     );
   }

@@ -1,29 +1,39 @@
 import { NextResponse } from "next/server";
+import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const ALLOWED = new Set(["general", "forex", "crypto", "merger"]);
+
 export interface NewsItem {
   id: string;
   headline: string;
-  summary: string;
   source: string;
   url: string;
   datetime: number;
-  category: string;
 }
 
 interface RawNews {
   id?: number;
   headline?: string;
-  summary?: string;
   source?: string;
   url?: string;
   datetime?: number;
-  category?: string;
 }
 
+const cache = new Map<string, { at: number; items: NewsItem[] }>();
+const TTL_MS = 300_000;
+
 export async function GET(request: Request) {
+  const limited = rateLimit(clientKey(request, "news"), 40, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { items: [], error: "rate_limited" },
+      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "60" } },
+    );
+  }
+
   const key = process.env.FINNHUB_API_KEY;
   if (!key) {
     return NextResponse.json(
@@ -33,7 +43,16 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const category = searchParams.get("category") ?? "general";
+  const raw = searchParams.get("category") ?? "general";
+  const category = ALLOWED.has(raw) ? raw : "general";
+
+  const hit = cache.get(category);
+  if (hit && Date.now() - hit.at < TTL_MS) {
+    return NextResponse.json(
+      { items: hit.items, cached: true },
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
+    );
+  }
 
   try {
     const res = await fetch(
@@ -42,29 +61,28 @@ export async function GET(request: Request) {
     );
     if (!res.ok) {
       return NextResponse.json(
-        { items: [], error: "upstream", status: res.status },
+        { items: hit?.items ?? [], error: "upstream", status: res.status },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    const raw = (await res.json()) as RawNews[];
-    const items: NewsItem[] = raw.slice(0, 60).map((n, i) => ({
+    const rows = (await res.json()) as RawNews[];
+    const items: NewsItem[] = rows.slice(0, 60).map((n, i) => ({
       id: String(n.id ?? i),
       headline: n.headline ?? "",
-      summary: n.summary ?? "",
       source: n.source ?? "",
       url: n.url ?? "",
       datetime: (n.datetime ?? 0) * 1000,
-      category: n.category ?? category,
     }));
 
+    cache.set(category, { at: Date.now(), items });
     return NextResponse.json(
       { items },
-      { headers: { "Cache-Control": "public, max-age=0, s-maxage=300" } },
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
     );
   } catch {
     return NextResponse.json(
-      { items: [], error: "fetch_failed" },
+      { items: hit?.items ?? [], error: "fetch_failed" },
       { headers: { "Cache-Control": "no-store" } },
     );
   }

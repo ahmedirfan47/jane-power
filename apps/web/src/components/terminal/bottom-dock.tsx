@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Maximize2 } from "lucide-react";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { EconomicCalendar } from "./economic-calendar";
 import { NewsFeed } from "./news-feed";
 
-type Tab = "calendar" | "news" | "both";
+type Tab = "both" | "calendar" | "news";
 
 const MIN_H = 32;
 const DEFAULT_H = 240;
@@ -19,6 +20,7 @@ export function BottomDock() {
   const lastExpanded = useRef(DEFAULT_H);
   const startY = useRef(0);
   const startH = useRef(0);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const collapsed = height <= COLLAPSED_H + 2;
 
@@ -32,19 +34,27 @@ export function BottomDock() {
         setHeight(saved.h);
         if (saved.h > COLLAPSED_H + 2) lastExpanded.current = saved.h;
       }
-      if (saved.tab) setTab(saved.tab);
+      if (saved.tab === "both" || saved.tab === "calendar" || saved.tab === "news") {
+        setTab(saved.tab);
+      }
     } catch {
-      // ignore unreadable storage
+      // unreadable storage — fall back to defaults
     }
   }, []);
 
-  // persist
+  // persist, debounced so dragging doesn't hammer storage
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ h: height, tab }));
-    } catch {
-      // storage unavailable — size just won't persist
-    }
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ h: height, tab }));
+      } catch {
+        // storage unavailable — size just won't persist
+      }
+    }, 250);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [height, tab]);
 
   const clamp = useCallback((h: number) => {
@@ -63,8 +73,7 @@ export function BottomDock() {
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragging) return;
     // dragging up grows the dock
-    const next = clamp(startH.current + (startY.current - e.clientY));
-    setHeight(next);
+    setHeight(clamp(startH.current + (startY.current - e.clientY)));
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -74,14 +83,13 @@ export function BottomDock() {
     if (height > COLLAPSED_H + 2) lastExpanded.current = height;
   };
 
-  const toggle = () => {
-    if (collapsed) {
-      setHeight(clamp(lastExpanded.current || DEFAULT_H));
-    } else {
-      lastExpanded.current = height;
-      setHeight(COLLAPSED_H);
-    }
-  };
+  const toggle = useCallback(() => {
+    setHeight((h) => {
+      if (h <= COLLAPSED_H + 2) return clamp(lastExpanded.current || DEFAULT_H);
+      lastExpanded.current = h;
+      return COLLAPSED_H;
+    });
+  }, [clamp]);
 
   const expandFull = () => {
     const next = clamp(window.innerHeight - 180);
@@ -89,7 +97,6 @@ export function BottomDock() {
     setHeight(next);
   };
 
-  // keyboard resize for accessibility
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -104,7 +111,8 @@ export function BottomDock() {
   };
 
   return (
-    <div
+    <section
+      aria-label="Macro and news"
       className="flex shrink-0 flex-col border-t border-hair bg-surface"
       style={{ height, transition: dragging ? "none" : "height 220ms cubic-bezier(0.4,0,0.2,1)" }}
     >
@@ -113,6 +121,7 @@ export function BottomDock() {
         role="separator"
         aria-orientation="horizontal"
         aria-label="Resize panel"
+        aria-valuenow={height}
         tabIndex={0}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -125,21 +134,23 @@ export function BottomDock() {
         }`}
         style={{ marginTop: -3 }}
       >
-        <span className="pointer-events-none absolute left-1/2 top-1/2 h-0.5 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-mute-2 opacity-0 transition-opacity group-hover:opacity-100" />
+        <span className="pointer-events-none absolute left-1/2 top-1/2 h-0.5 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-mute opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
 
       {/* header */}
       <div className="flex h-[26px] shrink-0 items-center gap-2 px-3">
-        <div className="flex gap-0.5">
+        <div className="flex gap-0.5" role="tablist" aria-label="Panel view">
           {(["both", "calendar", "news"] as Tab[]).map((t) => (
             <button
               key={t}
+              role="tab"
+              aria-selected={tab === t}
               onClick={() => {
                 setTab(t);
                 if (collapsed) setHeight(clamp(lastExpanded.current || DEFAULT_H));
               }}
               className={`rounded px-2 py-0.5 text-[10px] font-semibold capitalize transition-colors ${
-                tab === t ? "bg-gold/15 text-gold-hi" : "text-mute-2 hover:text-mute"
+                tab === t ? "bg-gold/15 text-gold-hi" : "text-mute hover:text-ink"
               }`}
             >
               {t}
@@ -150,15 +161,18 @@ export function BottomDock() {
         <div className="ml-auto flex items-center gap-1">
           <button
             onClick={expandFull}
-            title="Expand"
-            className="flex size-5 items-center justify-center rounded text-mute-2 transition-colors hover:text-ink"
+            title="Expand panel"
+            aria-label="Expand panel"
+            className="flex size-5 items-center justify-center rounded text-mute transition-colors hover:text-ink"
           >
             <Maximize2 size={11} />
           </button>
           <button
             onClick={toggle}
             title={collapsed ? "Expand panel" : "Collapse panel"}
-            className="flex size-5 items-center justify-center rounded text-mute-2 transition-colors hover:text-ink"
+            aria-label={collapsed ? "Expand panel" : "Collapse panel"}
+            aria-expanded={!collapsed}
+            className="flex size-5 items-center justify-center rounded text-mute transition-colors hover:text-ink"
           >
             {collapsed ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
@@ -171,23 +185,31 @@ export function BottomDock() {
           {tab === "both" ? (
             <div className="grid h-full min-h-0 grid-cols-1 divide-x divide-hair lg:grid-cols-2">
               <div className="min-h-0 overflow-hidden">
-                <EconomicCalendar />
+                <ErrorBoundary label="Calendar">
+                  <EconomicCalendar />
+                </ErrorBoundary>
               </div>
               <div className="min-h-0 overflow-hidden max-lg:hidden">
-                <NewsFeed />
+                <ErrorBoundary label="News">
+                  <NewsFeed />
+                </ErrorBoundary>
               </div>
             </div>
           ) : tab === "calendar" ? (
             <div className="h-full min-h-0 overflow-hidden">
-              <EconomicCalendar />
+              <ErrorBoundary label="Calendar">
+                <EconomicCalendar />
+              </ErrorBoundary>
             </div>
           ) : (
             <div className="h-full min-h-0 overflow-hidden">
-              <NewsFeed />
+              <ErrorBoundary label="News">
+                <NewsFeed />
+              </ErrorBoundary>
             </div>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
