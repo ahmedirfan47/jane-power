@@ -4,6 +4,7 @@ import type { ChartPanelConfig } from "@jane-power/shared";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { MarketEngine } from "./market-engine";
 import { CryptoFeed } from "./crypto-feed";
+import { ProviderFeed } from "./provider-feed";
 import { Mt5Feed } from "./mt5-feed";
 import { CommandBar } from "./command-bar";
 import { CommandPalette } from "./command-palette";
@@ -77,6 +78,7 @@ export function TerminalShell({
     <div className="flex h-dvh flex-col overflow-hidden">
       <MarketEngine />
       <CryptoFeed />
+      <ProviderFeed />
       <Mt5Feed />
       <CommandBar email={email} role={role} isGuest={isGuest} />
       <DemoBanner />

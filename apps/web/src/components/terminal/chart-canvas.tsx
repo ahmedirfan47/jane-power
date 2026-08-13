@@ -21,6 +21,7 @@ import { generateSeries, toHeikin } from "@/lib/market/engine";
 import { META } from "@/lib/market/symbols";
 import { SYMBOL_TO_BINANCE, fetchKlines } from "@/lib/market/binance";
 import { fetchMt5Candles } from "@/lib/market/mt5";
+import { fetchProviderCandles } from "@/lib/market/provider";
 
 function palette() {
   const s = getComputedStyle(document.documentElement);
@@ -51,6 +52,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
   const theme = useThemeStore((s) => s.theme);
   const last = quote?.last;
 
+  // create the chart once
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -123,6 +125,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     }
   }, [theme, type]);
 
+  // build series + load history
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -142,7 +145,11 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
 
     const meta = META[symbol];
     const decimals = meta?.decimals ?? 2;
-    const priceFormat = { type: "price" as const, precision: decimals, minMove: 1 / Math.pow(10, decimals) };
+    const priceFormat = {
+      type: "price" as const,
+      precision: decimals,
+      minMove: 1 / Math.pow(10, decimals),
+    };
 
     if (type === "line" || type === "area") {
       kindRef.current = "value";
@@ -168,7 +175,10 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       });
     }
 
-    const vol = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "" });
+    const vol = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: "volume" },
+      priceScaleId: "",
+    });
     vol.priceScale().applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
     volRef.current = vol;
 
@@ -200,14 +210,36 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     let refetch: ReturnType<typeof setInterval> | null = null;
 
     if (meta?.mt5) {
+      // prefer local MT5, fall back to the provider, then simulation
       fetchMt5Candles(symbol, tf)
-        .then((raw) => (raw.length ? applyData(raw, true, true) : simulate()))
-        .catch(simulate);
+        .then((raw) => (raw.length ? applyData(raw, true, true) : Promise.reject(new Error("empty"))))
+        .catch(() =>
+          meta?.provider
+            ? fetchProviderCandles(symbol, tf)
+                .then((raw) => (raw.length ? applyData(raw, true, true) : simulate()))
+                .catch(simulate)
+            : simulate(),
+        );
       refetch = setInterval(() => {
         fetchMt5Candles(symbol, tf)
           .then((raw) => raw.length && applyData(raw, false, true))
+          .catch(() => {
+            if (meta?.provider) {
+              fetchProviderCandles(symbol, tf)
+                .then((raw) => raw.length && applyData(raw, false, true))
+                .catch(() => {});
+            }
+          });
+      }, 60000);
+    } else if (meta?.provider) {
+      fetchProviderCandles(symbol, tf)
+        .then((raw) => (raw.length ? applyData(raw, true, true) : simulate()))
+        .catch(simulate);
+      refetch = setInterval(() => {
+        fetchProviderCandles(symbol, tf)
+          .then((raw) => raw.length && applyData(raw, false, true))
           .catch(() => {});
-      }, 30000);
+      }, 300000);
     } else if (bmap) {
       fetchKlines(bmap, tf)
         .then((raw) => (raw.length ? applyData(raw, true, true) : simulate()))
@@ -227,6 +259,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     };
   }, [symbol, tf, type, theme]);
 
+  // live-update the forming bar
   useEffect(() => {
     const raw = rawRef.current;
     const price = priceRef.current;
@@ -243,7 +276,14 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       countRef.current += 1;
       if (countRef.current >= 6) {
         countRef.current = 0;
-        raw.push({ t: bar.t + 60000, o: last, h: last, l: last, c: last, v: (bar.v ?? 1) * (0.4 + Math.random()) });
+        raw.push({
+          t: bar.t + 60000,
+          o: last,
+          h: last,
+          l: last,
+          c: last,
+          v: (bar.v ?? 1) * (0.4 + Math.random()),
+        });
         if (raw.length > 220) raw.shift();
       }
     }

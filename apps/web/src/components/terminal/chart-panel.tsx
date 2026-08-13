@@ -21,17 +21,28 @@ function SourceBadge({ symbol }: { symbol: string }) {
   const m = META[symbol];
   const mt5Status = useFeedStore((s) => s.mt5);
   const cryptoStatus = useFeedStore((s) => s.crypto);
+  const providerStatus = useFeedStore((s) => s.provider);
 
-  // A symbol is only "live" when its feed is actually connected.
-  const live = m?.mt5 ? mt5Status === "live" : m?.binance ? cryptoStatus === "live" : false;
-  const label = live ? (m?.mt5 ? "MT5" : "BINANCE") : "SIM";
+  let label = "SIM";
+  let live = false;
+
+  if (m?.binance && cryptoStatus === "live") {
+    label = "BINANCE";
+    live = true;
+  } else if (m?.mt5 && mt5Status === "live") {
+    label = "MT5";
+    live = true;
+  } else if (m?.provider && providerStatus === "live") {
+    label = "LIVE";
+    live = true;
+  }
 
   return (
     <span
       className={`rounded px-1 py-0.5 font-mono text-[8px] font-bold tracking-wider ${
         live ? "bg-bull/15 text-bull-hi" : "bg-surface-2 text-mute-2"
       }`}
-      title={live ? "Live market data" : "Simulated data — live feed unavailable"}
+      title={live ? "Live market data" : "Simulated data"}
     >
       {label}
     </span>
@@ -78,6 +89,9 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
                       className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11.5px] transition-colors hover:bg-gold/10 hover:text-gold-hi"
                     >
                       <span>{s.symbol}</span>
+                      {(s.binance || s.provider || s.mt5) && (
+                        <span className="size-1 rounded-full bg-bull-hi" />
+                      )}
                     </button>
                   ))}
                 </div>
