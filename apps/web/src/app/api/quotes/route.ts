@@ -23,8 +23,6 @@ interface TdQuote {
   percent_change?: string;
   high?: string;
   low?: string;
-  code?: number;
-  message?: string;
 }
 
 export interface ProviderQuote {
@@ -37,7 +35,14 @@ export interface ProviderQuote {
 
 let cache: { at: number; quotes: ProviderQuote[] } = { at: 0, quotes: [] };
 let inFlight: Promise<ProviderQuote[]> | null = null;
-const TTL_MS = 90_000;
+
+/**
+ * Twelve Data's free tier allows 800 credits/day. One batched call covers every
+ * symbol, so 45s ≈ 1,900 calls/day — above the cap, which means the quota can
+ * run out late in the day and stale cached values are served until it resets.
+ * Raise this to 120_000 for guaranteed 24/7 coverage, or upgrade the plan.
+ */
+const TTL_MS = 45_000;
 
 async function fetchUpstream(key: string): Promise<ProviderQuote[]> {
   const symbols = Object.values(SYMBOL_MAP).join(",");
@@ -59,10 +64,8 @@ async function fetchUpstream(key: string): Promise<ProviderQuote[]> {
     throw new Error(detail);
   }
 
-  const entries = Object.entries(json as Record<string, TdQuote>);
   const quotes: ProviderQuote[] = [];
-
-  for (const [tdSymbol, q] of entries) {
+  for (const [tdSymbol, q] of Object.entries(json as Record<string, TdQuote>)) {
     const app = REVERSE[tdSymbol];
     const price = parseFloat(q?.close ?? "");
     if (!app || !isFinite(price)) continue;
@@ -74,16 +77,15 @@ async function fetchUpstream(key: string): Promise<ProviderQuote[]> {
       low: parseFloat(q?.low ?? "") || price,
     });
   }
-
   return quotes;
 }
 
 export async function GET(request: Request) {
-  const limited = rateLimit(clientKey(request, "quotes"), 60, 60_000);
+  const limited = rateLimit(clientKey(request, "quotes"), 120, 60_000);
   if (!limited.ok) {
     return NextResponse.json(
       { quotes: cache.quotes, error: "rate_limited" },
-      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "60" } },
+      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "30" } },
     );
   }
 
@@ -98,8 +100,8 @@ export async function GET(request: Request) {
   const age = Date.now() - cache.at;
   if (age < TTL_MS && cache.quotes.length) {
     return NextResponse.json(
-      { quotes: cache.quotes, cached: true },
-      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" } },
+      { quotes: cache.quotes, cached: true, ageMs: age },
+      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=90" } },
     );
   }
 
@@ -111,8 +113,8 @@ export async function GET(request: Request) {
     const quotes = await inFlight;
     if (quotes.length) cache = { at: Date.now(), quotes };
     return NextResponse.json(
-      { quotes, cached: false },
-      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" } },
+      { quotes, cached: false, ageMs: 0 },
+      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=90" } },
     );
   } catch {
     return NextResponse.json(
