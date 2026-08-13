@@ -17,6 +17,7 @@ import { DemoBanner } from "./demo-banner";
 import { MobileBar } from "./mobile-bar";
 import { MobileControls } from "./mobile-controls";
 import { MobileDock } from "./mobile-dock";
+import { MobileTape } from "./mobile-tape";
 
 function useCellSize(chart: ChartPanelConfig) {
   const { charts, focusedIds } = useWorkspaceStore();
@@ -104,6 +105,7 @@ export function TerminalShell({
           <MobileBar isGuest={isGuest} />
           <MobileChart />
           <MobileControls />
+          <MobileTape />
           <MobileDock />
         </>
       ) : (

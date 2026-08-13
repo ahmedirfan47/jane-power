@@ -38,8 +38,8 @@
   --c-hair-soft: #171c24;
   --c-ink: #e8ebf0;
   --c-ink-dim: #b3bac6;
-  --c-mute: #737b89;
-  --c-mute-2: #454d5a;
+  --c-mute: #8а93a1;
+  --c-mute-2: #626b7a;
   --c-gold: #e0a43c;
   --c-gold-hi: #f6c368;
   --c-bull: #23b483;
@@ -50,7 +50,7 @@
   --atmosphere: color-mix(in srgb, var(--c-gold) 6%, transparent);
   --chart-grid: #161b21;
   --chart-border: #212834;
-  --chart-text: #737b89;
+  --chart-text: #8a93a1;
 }
 
 /* ── light ────────────────────────────────────────── */
@@ -65,8 +65,8 @@
   --c-hair-soft: #eceff4;
   --c-ink: #10151d;
   --c-ink-dim: #3b4453;
-  --c-mute: #626b7a;
-  --c-mute-2: #97a0ae;
+  --c-mute: #58616f;
+  --c-mute-2: #79828f;
   --c-gold: #b4791a;
   --c-gold-hi: #8f5f11;
   --c-bull: #0f9b6c;
@@ -77,7 +77,7 @@
   --atmosphere: transparent;
   --chart-grid: #eceff4;
   --chart-border: #dfe3ea;
-  --chart-text: #626b7a;
+  --chart-text: #58616f;
 }
 
 html,
@@ -93,6 +93,10 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* prevent iOS from inflating small terminal text */
+  -webkit-text-size-adjust: 100%;
+  /* stop rubber-band scroll bouncing the whole terminal on mobile */
+  overscroll-behavior: none;
 }
 
 ::selection {
@@ -109,8 +113,16 @@ body {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
   }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
 }
 
+/* scrollbars — thin, part of the furniture */
 ::-webkit-scrollbar {
   width: 9px;
   height: 9px;
@@ -123,7 +135,11 @@ body {
   border-radius: 5px;
   border: 2px solid var(--c-void);
 }
+::-webkit-scrollbar-thumb:hover {
+  background: var(--c-mute-2);
+}
 
+/* live-price flash cues */
 @keyframes flashUp {
   from {
     background: color-mix(in srgb, var(--c-bull) 26%, transparent);
@@ -147,6 +163,7 @@ body {
   animation: flashDown 0.45s ease-out;
 }
 
+/* ticker marquee */
 @keyframes tape {
   from {
     transform: translateX(0);
