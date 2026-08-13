@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-export const revalidate = 900; // cache 15 min — the upstream feed is rate limited
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.json";
 
@@ -41,13 +42,18 @@ export async function GET() {
     });
 
     if (!res.ok) {
-      return NextResponse.json({ events: [], error: "upstream" }, { status: 200 });
+      return NextResponse.json(
+        { events: [], error: "upstream", status: res.status },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const text = await res.text();
     if (text.trim().startsWith("<")) {
-      // rate limited — upstream returns an HTML "Request Denied" page
-      return NextResponse.json({ events: [], error: "rate_limited" }, { status: 200 });
+      return NextResponse.json(
+        { events: [], error: "rate_limited" },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const raw = JSON.parse(text) as RawEvent[];
@@ -64,8 +70,14 @@ export async function GET() {
         actual: e.actual ?? "",
       }));
 
-    return NextResponse.json({ events });
+    return NextResponse.json(
+      { events },
+      { headers: { "Cache-Control": "public, max-age=0, s-maxage=900" } },
+    );
   } catch {
-    return NextResponse.json({ events: [], error: "fetch_failed" }, { status: 200 });
+    return NextResponse.json(
+      { events: [], error: "fetch_failed" },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
