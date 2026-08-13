@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const SYMBOL_MAP: Record<string, string> = {
   XAUUSD: "XAU/USD",
@@ -29,11 +31,57 @@ interface TdBar {
   close?: string;
 }
 
-/** Cache per symbol+interval so repeat views don't burn credits. */
-const cache = new Map<string, { at: number; candles: unknown[] }>();
-const TTL_MS = 300_000; // 5 min
+interface Candle {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
+/**
+ * Twelve Data returns "YYYY-MM-DD HH:mm:ss" for intraday and "YYYY-MM-DD"
+ * for daily, both without a timezone. Parse explicitly as UTC instead of
+ * relying on Date's inconsistent handling of these shapes.
+ */
+function parseDatetime(raw?: string): number {
+  if (!raw) return NaN;
+  const s = raw.trim();
+
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (dateOnly) {
+    return Date.UTC(+dateOnly[1]!, +dateOnly[2]! - 1, +dateOnly[3]!);
+  }
+
+  const full = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+  if (full) {
+    return Date.UTC(
+      +full[1]!,
+      +full[2]! - 1,
+      +full[3]!,
+      +full[4]!,
+      +full[5]!,
+      full[6] ? +full[6] : 0,
+    );
+  }
+
+  const fallback = Date.parse(s);
+  return isFinite(fallback) ? fallback : NaN;
+}
+
+const cache = new Map<string, { at: number; candles: Candle[] }>();
+const TTL_MS = 300_000;
 
 export async function GET(request: Request) {
+  const limited = rateLimit(clientKey(request, "candles"), 60, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { candles: [], error: "rate_limited" },
+      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "60" } },
+    );
+  }
+
   const key = process.env.TWELVEDATA_API_KEY;
   if (!key) {
     return NextResponse.json({ candles: [], error: "no_key" });
@@ -57,36 +105,44 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(
-      `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${interval}&outputsize=200&apikey=${key}`,
+      `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${interval}&outputsize=300&timezone=UTC&apikey=${key}`,
       { cache: "no-store" },
     );
     if (!res.ok) {
       return NextResponse.json({ candles: hit?.candles ?? [], error: "upstream" });
     }
 
-    const json = (await res.json()) as { values?: TdBar[]; code?: number; message?: string };
-    if (json.code || !json.values) {
+    const json = (await res.json()) as {
+      values?: TdBar[];
+      code?: number;
+      message?: string;
+    };
+
+    if (typeof json.code === "number" || !json.values) {
       return NextResponse.json({
         candles: hit?.candles ?? [],
         error: "provider",
-        message: json.message ?? "",
+        message: typeof json.message === "string" ? json.message : "",
       });
     }
 
-    // Twelve Data returns newest-first; charts need oldest-first
-    const candles = json.values
+    // newest-first upstream; charts need oldest-first
+    const candles: Candle[] = json.values
       .map((b) => ({
-        t: new Date(`${b.datetime}Z`).getTime(),
-        o: parseFloat(b.open ?? "0"),
-        h: parseFloat(b.high ?? "0"),
-        l: parseFloat(b.low ?? "0"),
-        c: parseFloat(b.close ?? "0"),
+        t: parseDatetime(b.datetime),
+        o: parseFloat(b.open ?? ""),
+        h: parseFloat(b.high ?? ""),
+        l: parseFloat(b.low ?? ""),
+        c: parseFloat(b.close ?? ""),
         v: 0,
       }))
-      .filter((b) => isFinite(b.t) && isFinite(b.c))
-      .reverse();
+      .filter(
+        (b) =>
+          isFinite(b.t) && isFinite(b.o) && isFinite(b.h) && isFinite(b.l) && isFinite(b.c),
+      )
+      .sort((a, b) => a.t - b.t);
 
-    cache.set(cacheKey, { at: Date.now(), candles });
+    if (candles.length) cache.set(cacheKey, { at: Date.now(), candles });
     return NextResponse.json({ candles });
   } catch {
     return NextResponse.json({ candles: hit?.candles ?? [], error: "fetch_failed" });
