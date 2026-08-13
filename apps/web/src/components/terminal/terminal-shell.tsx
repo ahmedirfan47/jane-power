@@ -63,13 +63,21 @@ function ChartGrid() {
   );
 }
 
-export function TerminalShell({ email, role }: { email: string; role: string }) {
+export function TerminalShell({
+  email,
+  role,
+  isGuest,
+}: {
+  email: string;
+  role: string;
+  isGuest: boolean;
+}) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <MarketEngine />
       <CryptoFeed />
       <Mt5Feed />
-      <CommandBar email={email} role={role} />
+      <CommandBar email={email} role={role} isGuest={isGuest} />
       <div className="flex min-h-0 flex-1">
         <Watchlist />
         <ChartGrid />

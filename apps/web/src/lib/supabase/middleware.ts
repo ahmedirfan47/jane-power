@@ -31,7 +31,10 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthPage = path === "/login" || path === "/register" || path === "/reset";
-  const isPublic = path === "/" || isAuthPage || path.startsWith("/auth");
+
+  // Public: landing, auth pages, auth callback, and the terminal (demo mode).
+  const isPublic =
+    path === "/" || isAuthPage || path.startsWith("/auth") || path.startsWith("/terminal");
 
   if (!user && !isPublic) {
     const to = request.nextUrl.clone();

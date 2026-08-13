@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Search, X } from "lucide-react";
 import { useWorkspaceStore, type LayoutCount } from "@/stores/workspace";
 import { useUiStore } from "@/stores/ui";
@@ -11,7 +12,15 @@ import { FeedStatusBar } from "./feed-status";
 const LAYOUTS: LayoutCount[] = [1, 2, 4, 6, 8];
 const SESSIONS = ["SYD", "TYO", "LDN", "NY"];
 
-export function CommandBar({ email, role }: { email: string; role: string }) {
+export function CommandBar({
+  email,
+  role,
+  isGuest,
+}: {
+  email: string;
+  role: string;
+  isGuest: boolean;
+}) {
   const { layout, setLayout, focusedIds, clearFocus } = useWorkspaceStore();
   const setPalette = useUiStore((s) => s.setPalette);
   const [now, setNow] = useState<Date | null>(null);
@@ -53,7 +62,9 @@ export function CommandBar({ email, role }: { email: string; role: string }) {
               clearFocus();
             }}
             className={`tnum size-6 rounded-md border text-[11px] font-semibold transition-colors ${
-              layout === n ? "border-gold/40 bg-gold/12 text-gold-hi" : "border-hair bg-surface-2 text-mute hover:text-ink"
+              layout === n
+                ? "border-gold/40 bg-gold/12 text-gold-hi"
+                : "border-hair bg-surface-2 text-mute hover:text-ink"
             }`}
           >
             {n}
@@ -81,7 +92,9 @@ export function CommandBar({ email, role }: { email: string; role: string }) {
               {s}
             </span>
           ))}
-          {killzone && <span className="tnum rounded bg-gold px-1.5 py-0.5 text-[9px] font-bold text-void">KILLZONE</span>}
+          {killzone && (
+            <span className="tnum rounded bg-gold px-1.5 py-0.5 text-[9px] font-bold text-void">KILLZONE</span>
+          )}
         </div>
         <span className="tnum">
           <b className="text-ink">{utc}</b> UTC
@@ -90,15 +103,26 @@ export function CommandBar({ email, role }: { email: string; role: string }) {
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="rounded-full border border-gold/35 bg-gold/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-gold max-sm:hidden">
-          {role}
-        </span>
-        <span className="text-[11px] text-mute max-lg:hidden">{email}</span>
-        <form action={signOut}>
-          <button className="rounded-md border border-hair px-2.5 py-1 text-[11px] text-mute transition-colors hover:text-ink">
-            Sign out
-          </button>
-        </form>
+        {isGuest ? (
+          <Link
+            href="/login"
+            className="rounded-md bg-gold px-3 py-1 text-[11px] font-semibold text-void transition hover:bg-gold-hi"
+          >
+            Sign in
+          </Link>
+        ) : (
+          <>
+            <span className="rounded-full border border-gold/35 bg-gold/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-gold max-sm:hidden">
+              {role}
+            </span>
+            <span className="text-[11px] text-mute max-lg:hidden">{email}</span>
+            <form action={signOut}>
+              <button className="rounded-md border border-hair px-2.5 py-1 text-[11px] text-mute transition-colors hover:text-ink">
+                Sign out
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </header>
   );
