@@ -10,6 +10,7 @@ import { CommandPalette } from "./command-palette";
 import { Watchlist } from "./watchlist";
 import { TickerTape } from "./ticker-tape";
 import { ChartPanel } from "./chart-panel";
+import { BottomDock } from "./bottom-dock";
 
 function useCellSize(chart: ChartPanelConfig) {
   const { charts, focusedIds } = useWorkspaceStore();
@@ -73,6 +74,7 @@ export function TerminalShell({ email, role }: { email: string; role: string }) 
         <Watchlist />
         <ChartGrid />
       </div>
+      <BottomDock />
       <TickerTape />
       <CommandPalette />
     </div>
