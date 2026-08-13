@@ -47,11 +47,22 @@ async function fetchUpstream(key: string): Promise<ProviderQuote[]> {
   );
   if (!res.ok) throw new Error(`upstream ${res.status}`);
 
-  const json = (await res.json()) as Record<string, TdQuote> | TdQuote;
-  if ("code" in json && json.code) throw new Error(json.message ?? "provider error");
+  const json: unknown = await res.json();
+  if (typeof json !== "object" || json === null) {
+    throw new Error("unexpected provider response");
+  }
 
+  // Errors come back as a single object carrying a numeric `code`.
+  const asError = json as { code?: unknown; message?: unknown };
+  if (typeof asError.code === "number") {
+    const detail = typeof asError.message === "string" ? asError.message : "provider error";
+    throw new Error(detail);
+  }
+
+  const entries = Object.entries(json as Record<string, TdQuote>);
   const quotes: ProviderQuote[] = [];
-  for (const [tdSymbol, q] of Object.entries(json as Record<string, TdQuote>)) {
+
+  for (const [tdSymbol, q] of entries) {
     const app = REVERSE[tdSymbol];
     const price = parseFloat(q?.close ?? "");
     if (!app || !isFinite(price)) continue;
@@ -63,6 +74,7 @@ async function fetchUpstream(key: string): Promise<ProviderQuote[]> {
       low: parseFloat(q?.low ?? "") || price,
     });
   }
+
   return quotes;
 }
 
