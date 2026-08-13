@@ -2,14 +2,40 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalDependencies": [".env"],
+  "globalEnv": [
+    "NODE_ENV",
+    "VERCEL",
+    "VERCEL_ENV",
+    "VERCEL_URL"
+  ],
   "tasks": {
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SECRET_KEY",
+        "DATABASE_URL",
+        "FINNHUB_API_KEY",
+        "NEXT_PUBLIC_MT5_BRIDGE_URL",
+        "NEXT_PUBLIC_MT5_HISTORY_URL"
+      ]
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": [
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SECRET_KEY",
+        "DATABASE_URL",
+        "FINNHUB_API_KEY",
+        "NEXT_PUBLIC_MT5_BRIDGE_URL",
+        "NEXT_PUBLIC_MT5_HISTORY_URL"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"]
