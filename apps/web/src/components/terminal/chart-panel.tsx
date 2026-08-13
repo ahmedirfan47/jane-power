@@ -5,6 +5,7 @@ import type { ChartPanelConfig, ChartType, Timeframe } from "@jane-power/shared"
 import { TIMEFRAMES } from "@jane-power/shared";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { useMarketStore } from "@/stores/market";
+import { useFeedStore } from "@/stores/feed";
 import { Dropdown } from "@/components/ui/dropdown";
 import { ChartCanvas } from "./chart-canvas";
 import { SYMBOLS_BY_GROUP, GROUP_ORDER, fmtPrice, META } from "@/lib/market/symbols";
@@ -18,14 +19,19 @@ const CHART_TYPES: { k: ChartType; label: string }[] = [
 
 function SourceBadge({ symbol }: { symbol: string }) {
   const m = META[symbol];
-  const label = m?.mt5 ? "MT5" : m?.binance ? "BINANCE" : "SIM";
-  const live = !!(m?.mt5 || m?.binance);
+  const mt5Status = useFeedStore((s) => s.mt5);
+  const cryptoStatus = useFeedStore((s) => s.crypto);
+
+  // A symbol is only "live" when its feed is actually connected.
+  const live = m?.mt5 ? mt5Status === "live" : m?.binance ? cryptoStatus === "live" : false;
+  const label = live ? (m?.mt5 ? "MT5" : "BINANCE") : "SIM";
+
   return (
     <span
       className={`rounded px-1 py-0.5 font-mono text-[8px] font-bold tracking-wider ${
         live ? "bg-bull/15 text-bull-hi" : "bg-surface-2 text-mute-2"
       }`}
-      title={live ? "Live market data" : "Simulated data"}
+      title={live ? "Live market data" : "Simulated data — live feed unavailable"}
     >
       {label}
     </span>
@@ -72,7 +78,6 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
                       className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11.5px] transition-colors hover:bg-gold/10 hover:text-gold-hi"
                     >
                       <span>{s.symbol}</span>
-                      {(s.mt5 || s.binance) && <span className="size-1 rounded-full bg-bull-hi" />}
                     </button>
                   ))}
                 </div>

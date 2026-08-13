@@ -11,6 +11,7 @@ import { Watchlist } from "./watchlist";
 import { TickerTape } from "./ticker-tape";
 import { ChartPanel } from "./chart-panel";
 import { BottomDock } from "./bottom-dock";
+import { DemoBanner } from "./demo-banner";
 
 function useCellSize(chart: ChartPanelConfig) {
   const { charts, focusedIds } = useWorkspaceStore();
@@ -78,6 +79,7 @@ export function TerminalShell({
       <CryptoFeed />
       <Mt5Feed />
       <CommandBar email={email} role={role} isGuest={isGuest} />
+      <DemoBanner />
       <div className="flex min-h-0 flex-1">
         <Watchlist />
         <ChartGrid />
