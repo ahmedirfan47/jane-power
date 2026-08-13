@@ -2,6 +2,7 @@
 
 import type { ChartPanelConfig } from "@jane-power/shared";
 import { useWorkspaceStore } from "@/stores/workspace";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { MarketEngine } from "./market-engine";
 import { CryptoFeed } from "./crypto-feed";
 import { ProviderFeed } from "./provider-feed";
@@ -13,6 +14,9 @@ import { TickerTape } from "./ticker-tape";
 import { ChartPanel } from "./chart-panel";
 import { BottomDock } from "./bottom-dock";
 import { DemoBanner } from "./demo-banner";
+import { MobileBar } from "./mobile-bar";
+import { MobileControls } from "./mobile-controls";
+import { MobileDock } from "./mobile-dock";
 
 function useCellSize(chart: ChartPanelConfig) {
   const { charts, focusedIds } = useWorkspaceStore();
@@ -65,6 +69,18 @@ function ChartGrid() {
   );
 }
 
+/** One chart at a time — the only readable option on a phone. */
+function MobileChart() {
+  const { charts, activeId } = useWorkspaceStore();
+  const chart = charts.find((c) => c.id === activeId) ?? charts[0];
+  if (!chart) return null;
+  return (
+    <main className="min-h-0 flex-1 p-1">
+      <ChartPanel chart={chart} />
+    </main>
+  );
+}
+
 export function TerminalShell({
   email,
   role,
@@ -74,21 +90,35 @@ export function TerminalShell({
   role: string;
   isGuest: boolean;
 }) {
+  const isMobile = useIsMobile();
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <MarketEngine />
       <CryptoFeed />
       <ProviderFeed />
       <Mt5Feed />
-      <CommandBar email={email} role={role} isGuest={isGuest} />
-      <DemoBanner />
-      <div className="flex min-h-0 flex-1">
-        <Watchlist />
-        <ChartGrid />
-      </div>
-      <BottomDock />
-      <TickerTape />
-      <CommandPalette />
+
+      {isMobile ? (
+        <>
+          <MobileBar isGuest={isGuest} />
+          <MobileChart />
+          <MobileControls />
+          <MobileDock />
+        </>
+      ) : (
+        <>
+          <CommandBar email={email} role={role} isGuest={isGuest} />
+          <DemoBanner />
+          <div className="flex min-h-0 flex-1">
+            <Watchlist />
+            <ChartGrid />
+          </div>
+          <BottomDock />
+          <TickerTape />
+          <CommandPalette />
+        </>
+      )}
     </div>
   );
 }
