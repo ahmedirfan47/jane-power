@@ -8,19 +8,12 @@ import { useUiStore } from "@/stores/ui";
 import { sessionInfo } from "@/lib/market/engine";
 import { signOut } from "@/lib/actions/auth";
 import { FeedStatusBar } from "./feed-status";
+import { ThemeToggle } from "./theme-toggle";
 
 const LAYOUTS: LayoutCount[] = [1, 2, 4, 6, 8];
 const SESSIONS = ["SYD", "TYO", "LDN", "NY"];
 
-export function CommandBar({
-  email,
-  role,
-  isGuest,
-}: {
-  email: string;
-  role: string;
-  isGuest: boolean;
-}) {
+export function CommandBar({ email, role, isGuest }: { email: string; role: string; isGuest: boolean }) {
   const { layout, setLayout, focusedIds, clearFocus } = useWorkspaceStore();
   const setPalette = useUiStore((s) => s.setPalette);
   const [now, setNow] = useState<Date | null>(null);
@@ -86,7 +79,7 @@ export function CommandBar({
             <span
               key={s}
               className={`tnum rounded px-1.5 py-0.5 text-[9px] font-semibold ${
-                active.includes(s) ? "bg-[#1a2a20] text-ink" : "bg-surface-2 text-mute-2"
+                active.includes(s) ? "bg-bull/15 text-ink" : "bg-surface-2 text-mute-2"
               }`}
             >
               {s}
@@ -102,7 +95,8 @@ export function CommandBar({
         <FeedStatusBar />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
         {isGuest ? (
           <Link
             href="/login"

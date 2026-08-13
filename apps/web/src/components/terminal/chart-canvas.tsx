@@ -16,21 +16,24 @@ import {
 } from "lightweight-charts";
 import type { Candle, ChartType } from "@jane-power/shared";
 import { useMarketStore } from "@/stores/market";
+import { useThemeStore } from "@/stores/theme";
 import { generateSeries, toHeikin } from "@/lib/market/engine";
 import { META } from "@/lib/market/symbols";
 import { SYMBOL_TO_BINANCE, fetchKlines } from "@/lib/market/binance";
 import { fetchMt5Candles } from "@/lib/market/mt5";
 
-const C = {
-  text: "#737b89",
-  grid: "#161b21",
-  border: "#212834",
-  bull: "#23b483",
-  bear: "#e2544f",
-  gold: "#e0a43c",
-  volUp: "rgba(35,180,131,0.45)",
-  volDown: "rgba(226,84,79,0.45)",
-};
+function palette() {
+  const s = getComputedStyle(document.documentElement);
+  const v = (n: string, f: string) => s.getPropertyValue(n).trim() || f;
+  return {
+    text: v("--chart-text", "#737b89"),
+    grid: v("--chart-grid", "#161b21"),
+    border: v("--chart-border", "#212834"),
+    bull: v("--c-bull", "#23b483"),
+    bear: v("--c-bear", "#e2544f"),
+    gold: v("--c-gold", "#e0a43c"),
+  };
+}
 
 const sec = (t: number) => Math.floor(t / 1000) as UTCTimestamp;
 
@@ -42,14 +45,16 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
   const rawRef = useRef<Candle[]>([]);
   const kindRef = useRef<"candle" | "value">("candle");
   const countRef = useRef(0);
-  const realHistoryRef = useRef(false);
+  const realRef = useRef(false);
 
   const quote = useMarketStore((s) => s.quotes[symbol]);
+  const theme = useThemeStore((s) => s.theme);
   const last = quote?.last;
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const C = palette();
 
     const chart = createChart(el, {
       layout: {
@@ -86,10 +91,45 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     };
   }, []);
 
+  // re-theme without rebuilding data
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const C = palette();
+    chart.applyOptions({
+      layout: { textColor: C.text },
+      grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
+      rightPriceScale: { borderColor: C.border },
+      timeScale: { borderColor: C.border },
+      crosshair: {
+        vertLine: { color: C.gold, labelBackgroundColor: C.gold },
+        horzLine: { color: C.gold, labelBackgroundColor: C.gold },
+      },
+    });
+    const p = priceRef.current;
+    if (p) {
+      if (kindRef.current === "candle") {
+        (p as ISeriesApi<"Candlestick">).applyOptions({
+          upColor: C.bull,
+          downColor: C.bear,
+          wickUpColor: C.bull,
+          wickDownColor: C.bear,
+        });
+      } else if (type === "line") {
+        (p as ISeriesApi<"Line">).applyOptions({ color: C.gold });
+      } else {
+        (p as ISeriesApi<"Area">).applyOptions({ lineColor: C.gold });
+      }
+    }
+  }, [theme, type]);
+
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
     let cancelled = false;
+    const C = palette();
+    const volUp = `${C.bull}73`;
+    const volDown = `${C.bear}73`;
 
     if (priceRef.current) {
       chart.removeSeries(priceRef.current);
@@ -111,8 +151,8 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
           ? chart.addSeries(LineSeries, { color: C.gold, lineWidth: 2, priceFormat })
           : chart.addSeries(AreaSeries, {
               lineColor: C.gold,
-              topColor: "rgba(224,164,60,0.22)",
-              bottomColor: "rgba(224,164,60,0.01)",
+              topColor: `${C.gold}38`,
+              bottomColor: `${C.gold}03`,
               lineWidth: 2,
               priceFormat,
             });
@@ -137,7 +177,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       const v = volRef.current;
       if (cancelled || !price || !v || !raw.length) return;
       rawRef.current = raw;
-      realHistoryRef.current = real;
+      realRef.current = real;
       countRef.current = 0;
       if (kindRef.current === "value") {
         (price as ISeriesApi<"Line">).setData(raw.map((d) => ({ time: sec(d.t), value: d.c })));
@@ -148,7 +188,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
         );
       }
       (v as ISeriesApi<"Histogram">).setData(
-        raw.map((d) => ({ time: sec(d.t), value: d.v ?? 0, color: d.c >= d.o ? C.volUp : C.volDown })),
+        raw.map((d) => ({ time: sec(d.t), value: d.v ?? 0, color: d.c >= d.o ? volUp : volDown })),
       );
       if (fit) chart.timeScale().fitContent();
     };
@@ -160,15 +200,12 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     let refetch: ReturnType<typeof setInterval> | null = null;
 
     if (meta?.mt5) {
-      // real candles from the local MT5 terminal
       fetchMt5Candles(symbol, tf)
         .then((raw) => (raw.length ? applyData(raw, true, true) : simulate()))
         .catch(simulate);
       refetch = setInterval(() => {
         fetchMt5Candles(symbol, tf)
-          .then((raw) => {
-            if (raw.length) applyData(raw, false, true);
-          })
+          .then((raw) => raw.length && applyData(raw, false, true))
           .catch(() => {});
       }, 30000);
     } else if (bmap) {
@@ -177,9 +214,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
         .catch(simulate);
       refetch = setInterval(() => {
         fetchKlines(bmap, tf)
-          .then((raw) => {
-            if (raw.length) applyData(raw, false, true);
-          })
+          .then((raw) => raw.length && applyData(raw, false, true))
           .catch(() => {});
       }, 60000);
     } else {
@@ -190,21 +225,21 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       cancelled = true;
       if (refetch) clearInterval(refetch);
     };
-  }, [symbol, tf, type]);
+  }, [symbol, tf, type, theme]);
 
   useEffect(() => {
     const raw = rawRef.current;
     const price = priceRef.current;
     const vol = volRef.current;
     if (!raw.length || !price || !vol || last === undefined) return;
+    const C = palette();
 
     const bar = raw[raw.length - 1]!;
     bar.c = last;
     bar.h = Math.max(bar.h, last);
     bar.l = Math.min(bar.l, last);
 
-    // only the simulator invents new bars; real feeds get them from the source
-    if (!realHistoryRef.current) {
+    if (!realRef.current) {
       countRef.current += 1;
       if (countRef.current >= 6) {
         countRef.current = 0;
@@ -232,7 +267,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     (vol as ISeriesApi<"Histogram">).update({
       time: sec(cur.t),
       value: cur.v ?? 0,
-      color: cur.c >= cur.o ? C.volUp : C.volDown,
+      color: cur.c >= cur.o ? `${C.bull}73` : `${C.bear}73`,
     });
   }, [last, type, symbol]);
 

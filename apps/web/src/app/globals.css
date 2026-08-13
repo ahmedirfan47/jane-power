@@ -1,37 +1,83 @@
 @import "tailwindcss";
 
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
 @theme {
-  /* neutrals — a cool near-black scale, five real steps */
-  --color-void: #08090c;
-  --color-bg: #0b0d12;
-  --color-surface: #0f1218;
-  --color-surface-2: #14181f;
-  --color-elevated: #191e27;
-  --color-hair: #212834;
-  --color-hair-soft: #171c24;
-
-  /* ink */
-  --color-ink: #e8ebf0;
-  --color-ink-dim: #b3bac6;
-  --color-mute: #737b89;
-  --color-mute-2: #454d5a;
-
-  /* signature — gold, drawn from the instrument */
-  --color-gold: #e0a43c;
-  --color-gold-hi: #f6c368;
-
-  /* semantics — tuned for dark, not neon */
-  --color-bull: #23b483;
-  --color-bull-hi: #35d89b;
-  --color-bear: #e2544f;
-  --color-bear-hi: #ff6f6a;
+  --color-void: var(--c-void);
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-elevated: var(--c-elevated);
+  --color-hair: var(--c-hair);
+  --color-hair-soft: var(--c-hair-soft);
+  --color-ink: var(--c-ink);
+  --color-ink-dim: var(--c-ink-dim);
+  --color-mute: var(--c-mute);
+  --color-mute-2: var(--c-mute-2);
+  --color-gold: var(--c-gold);
+  --color-gold-hi: var(--c-gold-hi);
+  --color-bull: var(--c-bull);
+  --color-bull-hi: var(--c-bull-hi);
+  --color-bear: var(--c-bear);
+  --color-bear-hi: var(--c-bear-hi);
 
   --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-:root {
+/* ── dark (default) ───────────────────────────────── */
+:root,
+[data-theme="dark"] {
   color-scheme: dark;
+  --c-void: #08090c;
+  --c-bg: #0b0d12;
+  --c-surface: #0f1218;
+  --c-surface-2: #14181f;
+  --c-elevated: #191e27;
+  --c-hair: #212834;
+  --c-hair-soft: #171c24;
+  --c-ink: #e8ebf0;
+  --c-ink-dim: #b3bac6;
+  --c-mute: #737b89;
+  --c-mute-2: #454d5a;
+  --c-gold: #e0a43c;
+  --c-gold-hi: #f6c368;
+  --c-bull: #23b483;
+  --c-bull-hi: #35d89b;
+  --c-bear: #e2544f;
+  --c-bear-hi: #ff6f6a;
+
+  --atmosphere: color-mix(in srgb, var(--c-gold) 6%, transparent);
+  --chart-grid: #161b21;
+  --chart-border: #212834;
+  --chart-text: #737b89;
+}
+
+/* ── light ────────────────────────────────────────── */
+[data-theme="light"] {
+  color-scheme: light;
+  --c-void: #f7f8fa;
+  --c-bg: #ffffff;
+  --c-surface: #ffffff;
+  --c-surface-2: #f2f4f7;
+  --c-elevated: #ffffff;
+  --c-hair: #dfe3ea;
+  --c-hair-soft: #eceff4;
+  --c-ink: #10151d;
+  --c-ink-dim: #3b4453;
+  --c-mute: #626b7a;
+  --c-mute-2: #97a0ae;
+  --c-gold: #b4791a;
+  --c-gold-hi: #8f5f11;
+  --c-bull: #0f9b6c;
+  --c-bull-hi: #0a7f58;
+  --c-bear: #d13c37;
+  --c-bear-hi: #b32d29;
+
+  --atmosphere: transparent;
+  --chart-grid: #eceff4;
+  --chart-border: #dfe3ea;
+  --chart-text: #626b7a;
 }
 
 html,
@@ -41,25 +87,20 @@ body {
 
 body {
   margin: 0;
-  background-color: var(--color-void);
-  /* faint atmosphere — a warm gold wash top-right, nothing more */
-  background-image: radial-gradient(
-    900px 420px at 82% -8%,
-    color-mix(in srgb, var(--color-gold) 6%, transparent),
-    transparent 60%
-  );
-  color: var(--color-ink);
+  background-color: var(--c-void);
+  background-image: radial-gradient(900px 420px at 82% -8%, var(--atmosphere), transparent 60%);
+  color: var(--c-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-gold) 32%, transparent);
+  background: color-mix(in srgb, var(--c-gold) 30%, transparent);
 }
 
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-gold) 70%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--c-gold) 70%, transparent);
   outline-offset: 1px;
 }
 
@@ -68,15 +109,8 @@ body {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
   }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    scrollbar-width: none;
-  }
 }
 
-/* scrollbars — thin, part of the furniture */
 ::-webkit-scrollbar {
   width: 9px;
   height: 9px;
@@ -85,18 +119,14 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-elevated);
+  background: var(--c-hair);
   border-radius: 5px;
-  border: 2px solid var(--color-void);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #2b333f;
+  border: 2px solid var(--c-void);
 }
 
-/* live-price flash cues */
 @keyframes flashUp {
   from {
-    background: color-mix(in srgb, var(--color-bull) 26%, transparent);
+    background: color-mix(in srgb, var(--c-bull) 26%, transparent);
   }
   to {
     background: transparent;
@@ -104,7 +134,7 @@ body {
 }
 @keyframes flashDown {
   from {
-    background: color-mix(in srgb, var(--color-bear) 26%, transparent);
+    background: color-mix(in srgb, var(--c-bear) 26%, transparent);
   }
   to {
     background: transparent;
@@ -117,7 +147,6 @@ body {
   animation: flashDown 0.45s ease-out;
 }
 
-/* ticker marquee */
 @keyframes tape {
   from {
     transform: translateX(0);
