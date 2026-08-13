@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Circle, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useWorkspaceStore, type LayoutCount } from "@/stores/workspace";
 import { useUiStore } from "@/stores/ui";
 import { sessionInfo } from "@/lib/market/engine";
 import { signOut } from "@/lib/actions/auth";
+import { FeedStatusBar } from "./feed-status";
 
 const LAYOUTS: LayoutCount[] = [1, 2, 4, 6, 8];
 const SESSIONS = ["SYD", "TYO", "LDN", "NY"];
@@ -34,7 +35,7 @@ export function CommandBar({ email, role }: { email: string; role: string }) {
 
       <button
         onClick={() => setPalette(true)}
-        className="group flex items-center gap-2 rounded-md border border-hair bg-bg px-2.5 py-1.5 text-mute transition-colors hover:border-gold/40 max-sm:hidden"
+        className="flex items-center gap-2 rounded-md border border-hair bg-bg px-2.5 py-1.5 text-mute transition-colors hover:border-gold/40 max-sm:hidden"
       >
         <Search size={12} />
         <span className="text-[11px]">Search markets</span>
@@ -68,7 +69,7 @@ export function CommandBar({ email, role }: { email: string; role: string }) {
         )}
       </div>
 
-      <div className="ml-auto flex items-center gap-3.5 text-[11px] text-mute max-md:hidden">
+      <div className="ml-auto flex items-center gap-3 text-[11px] text-mute max-md:hidden">
         <div className="flex items-center gap-1">
           {SESSIONS.map((s) => (
             <span
@@ -85,9 +86,7 @@ export function CommandBar({ email, role }: { email: string; role: string }) {
         <span className="tnum">
           <b className="text-ink">{utc}</b> UTC
         </span>
-        <span className="flex items-center gap-1.5 font-mono text-[10px] font-semibold text-bull-hi">
-          <Circle size={7} className="fill-current" /> LIVE
-        </span>
+        <FeedStatusBar />
       </div>
 
       <div className="flex items-center gap-3">

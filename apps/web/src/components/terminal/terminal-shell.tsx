@@ -3,6 +3,8 @@
 import type { ChartPanelConfig } from "@jane-power/shared";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { MarketEngine } from "./market-engine";
+import { CryptoFeed } from "./crypto-feed";
+import { Mt5Feed } from "./mt5-feed";
 import { CommandBar } from "./command-bar";
 import { CommandPalette } from "./command-palette";
 import { Watchlist } from "./watchlist";
@@ -64,6 +66,8 @@ export function TerminalShell({ email, role }: { email: string; role: string }) 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <MarketEngine />
+      <CryptoFeed />
+      <Mt5Feed />
       <CommandBar email={email} role={role} />
       <div className="flex min-h-0 flex-1">
         <Watchlist />

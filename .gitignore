@@ -30,6 +30,12 @@ pnpm-debug.log*
 # testing / coverage
 coverage/
 
+# python (MT5 bridge)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
 # misc
 *.tsbuildinfo
 errors.txt

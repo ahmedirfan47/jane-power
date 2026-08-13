@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ALL_SYMBOLS, META } from "@/lib/market/symbols";
+import { ALL_SYMBOLS, META, isLiveSymbol } from "@/lib/market/symbols";
 import { gauss, hashStr, mulberry32 } from "@/lib/market/engine";
 
 export interface Quote {
@@ -22,15 +22,7 @@ function buildInitialQuotes(): Record<string, Quote> {
     const spark = Array.from({ length: 32 }, (_, i) =>
       m.base * (1 + (mulberry32(hashStr(symbol) + i)() - 0.5) * m.vol * 3),
     );
-    q[symbol] = {
-      symbol,
-      open,
-      last,
-      change: last - open,
-      changePct: ((last - open) / open) * 100,
-      spark,
-      dir: 0,
-    };
+    q[symbol] = { symbol, open, last, change: last - open, changePct: ((last - open) / open) * 100, spark, dir: 0 };
   }
   return q;
 }
@@ -38,14 +30,17 @@ function buildInitialQuotes(): Record<string, Quote> {
 interface MarketState {
   quotes: Record<string, Quote>;
   tick: () => void;
+  applyLive: (symbol: string, data: { last: number; changePct: number }) => void;
 }
 
 export const useMarketStore = create<MarketState>((set) => ({
   quotes: buildInitialQuotes(),
+
   tick: () =>
     set((state) => {
       const quotes = { ...state.quotes };
       for (const symbol of ALL_SYMBOLS) {
+        if (isLiveSymbol(symbol)) continue; // never fake a live symbol
         const prev = quotes[symbol]!;
         const m = META[symbol]!;
         const step = gauss(Math.random) * m.base * m.vol * 0.5;
@@ -60,5 +55,25 @@ export const useMarketStore = create<MarketState>((set) => ({
         };
       }
       return { quotes };
+    }),
+
+  applyLive: (symbol, data) =>
+    set((state) => {
+      const prev = state.quotes[symbol];
+      if (!prev) return {};
+      const dir = data.last > prev.last ? 1 : data.last < prev.last ? -1 : 0;
+      return {
+        quotes: {
+          ...state.quotes,
+          [symbol]: {
+            ...prev,
+            last: data.last,
+            changePct: data.changePct,
+            change: data.last - prev.open,
+            dir,
+            spark: [...prev.spark.slice(-31), data.last],
+          },
+        },
+      };
     }),
 }));

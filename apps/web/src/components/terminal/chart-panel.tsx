@@ -7,7 +7,7 @@ import { useWorkspaceStore } from "@/stores/workspace";
 import { useMarketStore } from "@/stores/market";
 import { Dropdown } from "@/components/ui/dropdown";
 import { ChartCanvas } from "./chart-canvas";
-import { SYMBOLS_BY_GROUP, GROUP_ORDER, fmtPrice } from "@/lib/market/symbols";
+import { SYMBOLS_BY_GROUP, GROUP_ORDER, fmtPrice, META } from "@/lib/market/symbols";
 
 const CHART_TYPES: { k: ChartType; label: string }[] = [
   { k: "candles", label: "Candles" },
@@ -15,6 +15,22 @@ const CHART_TYPES: { k: ChartType; label: string }[] = [
   { k: "line", label: "Line" },
   { k: "area", label: "Area" },
 ];
+
+function SourceBadge({ symbol }: { symbol: string }) {
+  const m = META[symbol];
+  const label = m?.mt5 ? "MT5" : m?.binance ? "BINANCE" : "SIM";
+  const live = !!(m?.mt5 || m?.binance);
+  return (
+    <span
+      className={`rounded px-1 py-0.5 font-mono text-[8px] font-bold tracking-wider ${
+        live ? "bg-bull/15 text-bull-hi" : "bg-surface-2 text-mute-2"
+      }`}
+      title={live ? "Live market data" : "Simulated data"}
+    >
+      {label}
+    </span>
+  );
+}
 
 export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
   const { focusedIds, activeId, toggleFocus, setActive, updateChart } = useWorkspaceStore();
@@ -56,12 +72,15 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
                       className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11.5px] transition-colors hover:bg-gold/10 hover:text-gold-hi"
                     >
                       <span>{s.symbol}</span>
+                      {(s.mt5 || s.binance) && <span className="size-1 rounded-full bg-bull-hi" />}
                     </button>
                   ))}
                 </div>
               ))
             }
           </Dropdown>
+
+          <SourceBadge symbol={chart.symbol} />
 
           {quote && (
             <span className={`tnum text-[11px] ${up ? "text-bull-hi" : "text-bear-hi"}`}>

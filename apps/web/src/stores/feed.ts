@@ -1,0 +1,17 @@
+import { create } from "zustand";
+
+export type FeedStatus = "connecting" | "live" | "offline";
+
+interface FeedState {
+  mt5: FeedStatus;
+  crypto: FeedStatus;
+  setMt5: (s: FeedStatus) => void;
+  setCrypto: (s: FeedStatus) => void;
+}
+
+export const useFeedStore = create<FeedState>((set) => ({
+  mt5: "connecting",
+  crypto: "connecting",
+  setMt5: (s) => set({ mt5: s }),
+  setCrypto: (s) => set({ crypto: s }),
+}));
