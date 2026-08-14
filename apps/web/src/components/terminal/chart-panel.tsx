@@ -20,28 +20,35 @@ const CHART_TYPES: { k: ChartType; label: string }[] = [
 
 function SourceTag({ symbol }: { symbol: string }) {
   const m = META[symbol];
+  const quote = useMarketStore((s) => s.quotes[symbol]);
   const mt5Status = useFeedStore((s) => s.mt5);
   const cryptoStatus = useFeedStore((s) => s.crypto);
   const providerStatus = useFeedStore((s) => s.provider);
 
+  // A symbol only counts as live once its feed is connected AND a real price
+  // has actually landed in the store.
+  const delivered = quote?.live ?? false;
+
   let label = "Simulated";
   let live = false;
 
-  if (m?.binance && cryptoStatus === "live") {
+  if (m?.binance && cryptoStatus === "live" && delivered) {
     label = "Binance";
     live = true;
-  } else if (m?.mt5 && mt5Status === "live") {
+  } else if (m?.mt5 && mt5Status === "live" && delivered) {
     label = "MT5";
     live = true;
-  } else if (m?.provider && providerStatus === "live") {
+  } else if (m?.provider && providerStatus === "live" && delivered) {
     label = "Live";
     live = true;
+  } else if ((m?.binance || m?.mt5 || m?.provider) && !delivered) {
+    label = "Connecting";
   }
 
   return (
     <span
       className={`t-label text-[10px] ${live ? "text-bull-hi" : "text-ink-4"}`}
-      title={live ? "Live market data" : "Simulated data"}
+      title={live ? "Live market data" : "Waiting for the live feed"}
     >
       {label}
     </span>
@@ -54,6 +61,7 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
   const focused = focusedIds.includes(chart.id);
   const active = activeId === chart.id;
   const up = (quote?.changePct ?? 0) >= 0;
+  const pending = !!META[chart.symbol]?.provider && !quote?.live;
 
   return (
     <div
@@ -98,7 +106,7 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
         </Dropdown>
 
         {quote && (
-          <span className="flex items-baseline gap-2">
+          <span className={`flex items-baseline gap-2 ${pending ? "opacity-40" : ""}`}>
             <span className="t-num text-[14px] text-ink">{fmtPrice(chart.symbol, quote.last)}</span>
             <span className={`t-num text-[12px] ${up ? "text-bull-hi" : "text-bear-hi"}`}>
               {up ? "+" : ""}

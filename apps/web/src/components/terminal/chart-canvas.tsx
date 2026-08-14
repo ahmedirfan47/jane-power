@@ -25,7 +25,6 @@ import { fetchMt5Candles } from "@/lib/market/mt5";
 import { fetchProviderCandles } from "@/lib/market/provider";
 import { ChartSkeleton } from "./chart-skeleton";
 
-/** Reads live values from the design system so charts follow the theme exactly. */
 function palette() {
   const s = getComputedStyle(document.documentElement);
   const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
@@ -39,14 +38,12 @@ function palette() {
   };
 }
 
-/** Volume bars sit behind price — heavily muted so they never compete. */
 function volumeTint(hex: string): string {
   return `${hex}40`;
 }
 
 const sec = (t: number) => Math.floor(t / 1000) as UTCTimestamp;
 
-/** Bar duration in ms, so simulated candles advance correctly per timeframe. */
 const TF_MS: Record<string, number> = {
   "1m": 60_000,
   "5m": 300_000,
@@ -72,6 +69,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
   const quote = useMarketStore((s) => s.quotes[symbol]);
   const theme = useThemeStore((s) => s.theme);
   const last = quote?.last;
+  const quoteIsLive = quote?.live ?? false;
 
   // create the chart once
   useEffect(() => {
@@ -179,7 +177,6 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     const chart = chartRef.current;
     if (!chart) return;
 
-    // guards against a slow earlier fetch painting over a newer one
     const requestId = ++requestRef.current;
     const isStale = () => requestId !== requestRef.current;
 
@@ -251,7 +248,6 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       const v = volRef.current;
       if (isStale() || !price || !v || !incoming.length) return;
 
-      // always chronological, always de-duplicated by timestamp
       const seen = new Set<number>();
       const raw = incoming
         .filter((d) => isFinite(d.t) && isFinite(d.c))
@@ -264,14 +260,16 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
         });
       if (!raw.length) return;
 
-      // Pin the newest bar to the live quote before first paint, so the chart
-      // never opens showing a price that disagrees with the header.
-      const liveNow = useMarketStore.getState().quotes[symbol]?.last;
-      if (liveNow !== undefined && raw.length) {
+      // Pin the newest bar to the live quote — but ONLY if a real feed has
+      // actually delivered one. Before that, the store still holds a seeded
+      // placeholder, and stamping it here is what made real charts show
+      // simulated prices on first paint.
+      const liveQuote = useMarketStore.getState().quotes[symbol];
+      if (real && liveQuote?.live && isFinite(liveQuote.last)) {
         const tip = raw[raw.length - 1]!;
-        tip.c = liveNow;
-        if (liveNow > tip.h) tip.h = liveNow;
-        if (liveNow < tip.l) tip.l = liveNow;
+        tip.c = liveQuote.last;
+        if (liveQuote.last > tip.h) tip.h = liveQuote.last;
+        if (liveQuote.last < tip.l) tip.l = liveQuote.last;
       }
 
       rawRef.current = raw;
@@ -310,7 +308,6 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     let refetch: ReturnType<typeof setInterval> | null = null;
 
     if (meta?.mt5) {
-      // local MT5 first, then the provider, then simulation
       fetchMt5Candles(symbol, tf)
         .then((raw) =>
           raw.length ? applyData(raw, true, true) : Promise.reject(new Error("empty")),
@@ -370,18 +367,16 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     const vol = volRef.current;
     if (!raw.length || !price || !vol || last === undefined) return;
 
+    // A real chart must not be driven by a placeholder quote. Wait for the feed.
+    if (realRef.current && !quoteIsLive) return;
+
     const C = palette();
     const bar = raw[raw.length - 1]!;
 
-    // The live quote is the single source of truth for the current price on
-    // every timeframe. Pinning the forming bar's close to it means 1m, 1h and
-    // 4h can never disagree about what the market is doing right now.
     bar.c = last;
     if (last > bar.h) bar.h = last;
     if (last < bar.l) bar.l = last;
 
-    // Only simulated series invent new bars. Real feeds receive new bars from
-    // their source on the refresh schedule above.
     if (!realRef.current) {
       countRef.current += 1;
       if (countRef.current >= 6) {
@@ -421,7 +416,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       value: cur.v ?? 0,
       color: cur.c >= cur.o ? volumeTint(C.bull) : volumeTint(C.bear),
     });
-  }, [last, type, symbol, tf]);
+  }, [last, type, symbol, tf, quoteIsLive]);
 
   return (
     <>

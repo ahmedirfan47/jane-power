@@ -10,6 +10,8 @@ export interface Quote {
   changePct: number;
   spark: number[];
   dir: -1 | 0 | 1;
+  /** true once a real feed has delivered a price for this symbol */
+  live: boolean;
 }
 
 function buildInitialQuotes(): Record<string, Quote> {
@@ -22,7 +24,16 @@ function buildInitialQuotes(): Record<string, Quote> {
     const spark = Array.from({ length: 32 }, (_, i) =>
       m.base * (1 + (mulberry32(hashStr(symbol) + i)() - 0.5) * m.vol * 3),
     );
-    q[symbol] = { symbol, open, last, change: last - open, changePct: ((last - open) / open) * 100, spark, dir: 0 };
+    q[symbol] = {
+      symbol,
+      open,
+      last,
+      change: last - open,
+      changePct: ((last - open) / open) * 100,
+      spark,
+      dir: 0,
+      live: false,
+    };
   }
   return q;
 }
@@ -40,7 +51,8 @@ export const useMarketStore = create<MarketState>((set) => ({
     set((state) => {
       const quotes = { ...state.quotes };
       for (const symbol of ALL_SYMBOLS) {
-        if (isLiveSymbol(symbol)) continue; // never fake a live symbol
+        // never fake a symbol that has a real feed attached
+        if (isLiveSymbol(symbol)) continue;
         const prev = quotes[symbol]!;
         const m = META[symbol]!;
         const step = gauss(Math.random) * m.base * m.vol * 0.5;
@@ -72,6 +84,7 @@ export const useMarketStore = create<MarketState>((set) => ({
             change: data.last - prev.open,
             dir,
             spark: [...prev.spark.slice(-31), data.last],
+            live: true,
           },
         },
       };
