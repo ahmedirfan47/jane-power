@@ -9,6 +9,7 @@ import {
   HistogramSeries,
   ColorType,
   CrosshairMode,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
   type SeriesType,
@@ -23,22 +24,29 @@ import { SYMBOL_TO_BINANCE, fetchKlines } from "@/lib/market/binance";
 import { fetchMt5Candles } from "@/lib/market/mt5";
 import { fetchProviderCandles } from "@/lib/market/provider";
 
+/** Reads live values from the design system so charts follow the theme exactly. */
 function palette() {
   const s = getComputedStyle(document.documentElement);
-  const v = (n: string, f: string) => s.getPropertyValue(n).trim() || f;
+  const v = (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
   return {
-    text: v("--chart-text", "#737b89"),
-    grid: v("--chart-grid", "#161b21"),
-    border: v("--chart-border", "#212834"),
-    bull: v("--c-bull", "#23b483"),
-    bear: v("--c-bear", "#e2544f"),
-    gold: v("--c-gold", "#e0a43c"),
+    text: v("--chart-text", "#82858a"),
+    grid: v("--chart-grid", "#161719"),
+    rule: v("--chart-rule", "#232428"),
+    bull: v("--c-bull", "#2e9e6b"),
+    bear: v("--c-bear", "#cf4a45"),
+    gold: v("--c-gold", "#c8963e"),
+    void: v("--c-void", "#0a0a0b"),
   };
+}
+
+/** Volume bars sit behind price — heavily muted so they never compete. */
+function volumeTint(hex: string): string {
+  return `${hex}40`;
 }
 
 const sec = (t: number) => Math.floor(t / 1000) as UTCTimestamp;
 
-/** Bar duration in ms, used to advance simulated candles correctly per timeframe. */
+/** Bar duration in ms, so simulated candles advance correctly per timeframe. */
 const TF_MS: Record<string, number> = {
   "1m": 60_000,
   "5m": 300_000,
@@ -74,18 +82,41 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: C.text,
         fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-        fontSize: 10,
+        fontSize: 11,
         attributionLogo: false,
       },
-      grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
-      rightPriceScale: { borderColor: C.border, scaleMargins: { top: 0.08, bottom: 0.22 } },
-      timeScale: { borderColor: C.border, timeVisible: true, secondsVisible: false, rightOffset: 4 },
+      grid: {
+        vertLines: { color: C.grid },
+        horzLines: { color: C.grid },
+      },
+      rightPriceScale: {
+        borderColor: C.rule,
+        scaleMargins: { top: 0.1, bottom: 0.24 },
+      },
+      timeScale: {
+        borderColor: C.rule,
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 6,
+      },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: C.gold, width: 1, style: 2, labelBackgroundColor: C.gold },
-        horzLine: { color: C.gold, width: 1, style: 2, labelBackgroundColor: C.gold },
+        vertLine: {
+          color: C.text,
+          width: 1,
+          style: LineStyle.Dotted,
+          labelBackgroundColor: C.gold,
+        },
+        horzLine: {
+          color: C.text,
+          width: 1,
+          style: LineStyle.Dotted,
+          labelBackgroundColor: C.gold,
+        },
       },
+      handleScale: { axisPressedMouseMove: { time: true, price: true } },
     });
+
     chartRef.current = chart;
     chart.resize(el.clientWidth, el.clientHeight);
 
@@ -113,11 +144,11 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     chart.applyOptions({
       layout: { textColor: C.text },
       grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
-      rightPriceScale: { borderColor: C.border },
-      timeScale: { borderColor: C.border },
+      rightPriceScale: { borderColor: C.rule },
+      timeScale: { borderColor: C.rule },
       crosshair: {
-        vertLine: { color: C.gold, labelBackgroundColor: C.gold },
-        horzLine: { color: C.gold, labelBackgroundColor: C.gold },
+        vertLine: { color: C.text, labelBackgroundColor: C.gold },
+        horzLine: { color: C.text, labelBackgroundColor: C.gold },
       },
     });
 
@@ -133,7 +164,11 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       } else if (type === "line") {
         (p as ISeriesApi<"Line">).applyOptions({ color: C.gold });
       } else {
-        (p as ISeriesApi<"Area">).applyOptions({ lineColor: C.gold });
+        (p as ISeriesApi<"Area">).applyOptions({
+          lineColor: C.gold,
+          topColor: `${C.gold}2E`,
+          bottomColor: `${C.gold}00`,
+        });
       }
     }
   }, [theme, type]);
@@ -148,8 +183,8 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     const isStale = () => requestId !== requestRef.current;
 
     const C = palette();
-    const volUp = `${C.bull}73`;
-    const volDown = `${C.bear}73`;
+    const volUp = volumeTint(C.bull);
+    const volDown = volumeTint(C.bear);
 
     if (priceRef.current) {
       chart.removeSeries(priceRef.current);
@@ -172,12 +207,18 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       kindRef.current = "value";
       priceRef.current =
         type === "line"
-          ? chart.addSeries(LineSeries, { color: C.gold, lineWidth: 2, priceFormat })
+          ? chart.addSeries(LineSeries, {
+              color: C.gold,
+              lineWidth: 2,
+              priceLineStyle: LineStyle.Dotted,
+              priceFormat,
+            })
           : chart.addSeries(AreaSeries, {
               lineColor: C.gold,
-              topColor: `${C.gold}38`,
-              bottomColor: `${C.gold}03`,
+              topColor: `${C.gold}2E`,
+              bottomColor: `${C.gold}00`,
               lineWidth: 2,
+              priceLineStyle: LineStyle.Dotted,
               priceFormat,
             });
     } else {
@@ -188,6 +229,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
         wickUpColor: C.bull,
         wickDownColor: C.bear,
         borderVisible: false,
+        priceLineStyle: LineStyle.Dotted,
         priceFormat,
       });
     }
@@ -195,8 +237,10 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     const vol = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
       priceScaleId: "",
+      lastValueVisible: false,
+      priceLineVisible: false,
     });
-    vol.priceScale().applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
+    vol.priceScale().applyOptions({ scaleMargins: { top: 0.86, bottom: 0 } });
     volRef.current = vol;
 
     const applyData = (incoming: Candle[], fit: boolean, real: boolean) => {
@@ -254,7 +298,9 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     if (meta?.mt5) {
       // local MT5 first, then the provider, then simulation
       fetchMt5Candles(symbol, tf)
-        .then((raw) => (raw.length ? applyData(raw, true, true) : Promise.reject(new Error("empty"))))
+        .then((raw) =>
+          raw.length ? applyData(raw, true, true) : Promise.reject(new Error("empty")),
+        )
         .catch(() =>
           meta?.provider
             ? fetchProviderCandles(symbol, tf)
@@ -362,7 +408,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     (vol as ISeriesApi<"Histogram">).update({
       time: sec(cur.t),
       value: cur.v ?? 0,
-      color: cur.c >= cur.o ? `${C.bull}73` : `${C.bear}73`,
+      color: cur.c >= cur.o ? volumeTint(C.bull) : volumeTint(C.bear),
     });
   }, [last, type, symbol, tf]);
 

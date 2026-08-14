@@ -18,32 +18,30 @@ const CHART_TYPES: { k: ChartType; label: string }[] = [
   { k: "area", label: "Area" },
 ];
 
-function SourceBadge({ symbol }: { symbol: string }) {
+function SourceTag({ symbol }: { symbol: string }) {
   const m = META[symbol];
   const mt5Status = useFeedStore((s) => s.mt5);
   const cryptoStatus = useFeedStore((s) => s.crypto);
   const providerStatus = useFeedStore((s) => s.provider);
 
-  let label = "SIM";
+  let label = "Simulated";
   let live = false;
 
   if (m?.binance && cryptoStatus === "live") {
-    label = "BINANCE";
+    label = "Binance";
     live = true;
   } else if (m?.mt5 && mt5Status === "live") {
     label = "MT5";
     live = true;
   } else if (m?.provider && providerStatus === "live") {
-    label = "LIVE";
+    label = "Live";
     live = true;
   }
 
   return (
     <span
-      className={`rounded px-1 py-0.5 font-mono text-[9px] font-bold tracking-wider ${
-        live ? "bg-bull/15 text-bull-hi" : "bg-surface-2 text-mute"
-      }`}
-      title={live ? "Live market data" : "Simulated data — live feed unavailable"}
+      className={`t-label text-[10px] ${live ? "text-bull-hi" : "text-ink-4"}`}
+      title={live ? "Live market data" : "Simulated data"}
     >
       {label}
     </span>
@@ -60,71 +58,66 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
   return (
     <div
       onMouseDown={() => setActive(chart.id)}
-      className={`flex h-full flex-col overflow-hidden rounded-lg border bg-surface transition-[border-color,box-shadow] ${
-        focused
-          ? "border-gold/55 shadow-[0_0_0_1px_rgba(224,164,60,0.25),0_10px_34px_rgba(0,0,0,0.45)]"
-          : active
-            ? "border-hair"
-            : "border-hair-soft"
+      className={`flex h-full flex-col overflow-hidden border bg-surface transition-colors ${
+        focused ? "border-gold" : active ? "border-ink-4" : "border-rule"
       }`}
     >
       <div
-        className="flex h-8 items-center justify-between gap-2 border-b border-hair-soft bg-surface-2 pl-1 pr-1.5"
+        className="flex h-9 items-center gap-3 border-b border-rule px-2"
         onDoubleClick={() => toggleFocus(chart.id)}
       >
-        <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
-          <Dropdown trigger={<span className="font-semibold tracking-wide">{chart.symbol}</span>}>
-            {(close) =>
-              GROUP_ORDER.map((g) => (
-                <div key={g}>
-                  <div className="px-2 pb-1 pt-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-mute">
-                    {g}
-                  </div>
-                  {SYMBOLS_BY_GROUP[g].map((s) => (
-                    <button
-                      key={s.symbol}
-                      onClick={() => {
-                        updateChart(chart.id, { symbol: s.symbol });
-                        close();
-                      }}
-                      className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[11.5px] transition-colors hover:bg-gold/10 hover:text-gold-hi"
-                    >
-                      <span>{s.symbol}</span>
-                      {(s.binance || s.provider || s.mt5) && (
-                        <span className="size-1 rounded-full bg-bull-hi" aria-hidden />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ))
-            }
-          </Dropdown>
-
-          <SourceBadge symbol={chart.symbol} />
-
-          {quote && (
-            <span
-              className={`tnum text-[11px] ${up ? "text-bull-hi" : "text-bear-hi"}`}
-              aria-live="off"
-            >
-              {fmtPrice(chart.symbol, quote.last)}{" "}
-              <span className="text-[10px]">
-                {up ? "+" : ""}
-                {quote.changePct.toFixed(2)}%
-              </span>
+        <Dropdown
+          trigger={
+            <span className="font-display text-[13px] font-semibold tracking-tight">
+              {chart.symbol}
             </span>
-          )}
-        </div>
+          }
+        >
+          {(close) =>
+            GROUP_ORDER.map((g) => (
+              <div key={g}>
+                <div className="t-label px-2 pb-1 pt-2 text-[10px]">{g}</div>
+                {SYMBOLS_BY_GROUP[g].map((s) => (
+                  <button
+                    key={s.symbol}
+                    onClick={() => {
+                      updateChart(chart.id, { symbol: s.symbol });
+                      close();
+                    }}
+                    className="flex w-full items-center justify-between px-2 py-1.5 text-left text-[13px] text-ink-2 transition-colors hover:bg-raised hover:text-ink"
+                  >
+                    <span>{s.symbol}</span>
+                    {(s.binance || s.provider || s.mt5) && (
+                      <span className="size-1 rounded-full bg-bull-hi" aria-hidden />
+                    )}
+                  </button>
+                ))}
+              </div>
+            ))
+          }
+        </Dropdown>
 
-        <div className="flex items-center gap-0.5">
-          <div className="mr-0.5 flex rounded-md border border-hair bg-bg p-0.5">
+        {quote && (
+          <span className="flex items-baseline gap-2">
+            <span className="t-num text-[14px] text-ink">{fmtPrice(chart.symbol, quote.last)}</span>
+            <span className={`t-num text-[12px] ${up ? "text-bull-hi" : "text-bear-hi"}`}>
+              {up ? "+" : ""}
+              {quote.changePct.toFixed(2)}%
+            </span>
+          </span>
+        )}
+
+        <SourceTag symbol={chart.symbol} />
+
+        <div className="ml-auto flex items-center">
+          <div className="flex border-r border-rule pr-2">
             {TIMEFRAMES.map((t) => (
               <button
                 key={t}
                 onClick={() => updateChart(chart.id, { timeframe: t as Timeframe })}
                 aria-pressed={chart.timeframe === t}
-                className={`tnum rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
-                  chart.timeframe === t ? "bg-gold/15 text-gold-hi" : "text-mute hover:text-ink"
+                className={`t-num px-1.5 py-1 text-[11px] transition-colors ${
+                  chart.timeframe === t ? "text-gold-hi" : "text-ink-4 hover:text-ink-2"
                 }`}
               >
                 {t}
@@ -133,10 +126,10 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
           </div>
 
           <Dropdown
-            width={140}
+            width={150}
             align="right"
             trigger={
-              <span className="text-[10.5px] text-mute">
+              <span className="text-[12px] text-ink-3">
                 {CHART_TYPES.find((c) => c.k === chart.chartType)?.label}
               </span>
             }
@@ -149,7 +142,7 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
                     updateChart(chart.id, { chartType: c.k });
                     close();
                   }}
-                  className="flex w-full rounded-md px-2 py-1.5 text-left text-[11.5px] transition-colors hover:bg-gold/10 hover:text-gold-hi"
+                  className="flex w-full px-2 py-1.5 text-left text-[13px] text-ink-2 transition-colors hover:bg-raised hover:text-ink"
                 >
                   {c.label}
                 </button>
@@ -159,14 +152,13 @@ export function ChartPanel({ chart }: { chart: ChartPanelConfig }) {
 
           <button
             onClick={() => toggleFocus(chart.id)}
-            title={focused ? "Exit focus" : "Focus chart"}
             aria-label={focused ? "Exit focus" : "Focus chart"}
             aria-pressed={focused}
-            className={`flex size-6 items-center justify-center rounded-md transition-colors ${
-              focused ? "bg-gold/15 text-gold-hi" : "text-mute hover:bg-surface-2 hover:text-ink"
+            className={`ml-1 flex size-7 items-center justify-center transition-colors ${
+              focused ? "text-gold-hi" : "text-ink-4 hover:text-ink"
             }`}
           >
-            {focused ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+            {focused ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
           </button>
         </div>
       </div>

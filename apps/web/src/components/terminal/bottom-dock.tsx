@@ -9,8 +9,8 @@ import { NewsFeed } from "./news-feed";
 type Tab = "both" | "calendar" | "news";
 
 const MIN_H = 32;
-const DEFAULT_H = 240;
-const COLLAPSED_H = 32;
+const DEFAULT_H = 248;
+const COLLAPSED_H = 30;
 const STORAGE_KEY = "jp-dock";
 
 export function BottomDock() {
@@ -24,7 +24,6 @@ export function BottomDock() {
 
   const collapsed = height <= COLLAPSED_H + 2;
 
-  // restore saved size + tab
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -38,18 +37,17 @@ export function BottomDock() {
         setTab(saved.tab);
       }
     } catch {
-      // unreadable storage — fall back to defaults
+      /* unreadable storage — use defaults */
     }
   }, []);
 
-  // persist, debounced so dragging doesn't hammer storage
   useEffect(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ h: height, tab }));
       } catch {
-        // storage unavailable — size just won't persist
+        /* storage unavailable — size won't persist */
       }
     }, 250);
     return () => {
@@ -58,7 +56,7 @@ export function BottomDock() {
   }, [height, tab]);
 
   const clamp = useCallback((h: number) => {
-    const max = Math.max(MIN_H, window.innerHeight - 180);
+    const max = Math.max(MIN_H, window.innerHeight - 200);
     return Math.min(max, Math.max(MIN_H, h));
   }, []);
 
@@ -72,7 +70,6 @@ export function BottomDock() {
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragging) return;
-    // dragging up grows the dock
     setHeight(clamp(startH.current + (startY.current - e.clientY)));
   };
 
@@ -92,7 +89,7 @@ export function BottomDock() {
   }, [clamp]);
 
   const expandFull = () => {
-    const next = clamp(window.innerHeight - 180);
+    const next = clamp(window.innerHeight - 200);
     lastExpanded.current = next;
     setHeight(next);
   };
@@ -112,11 +109,10 @@ export function BottomDock() {
 
   return (
     <section
-      aria-label="Macro and news"
-      className="flex shrink-0 flex-col border-t border-hair bg-surface"
-      style={{ height, transition: dragging ? "none" : "height 220ms cubic-bezier(0.4,0,0.2,1)" }}
+      aria-label="Calendar and news"
+      className="flex shrink-0 flex-col border-t border-rule bg-surface"
+      style={{ height, transition: dragging ? "none" : "height 200ms cubic-bezier(0.4,0,0.2,1)" }}
     >
-      {/* drag handle */}
       <div
         role="separator"
         aria-orientation="horizontal"
@@ -129,17 +125,14 @@ export function BottomDock() {
         onPointerCancel={onPointerUp}
         onDoubleClick={toggle}
         onKeyDown={onKeyDown}
-        className={`group relative h-1.5 shrink-0 cursor-row-resize touch-none ${
-          dragging ? "bg-gold/50" : "bg-transparent hover:bg-gold/25"
+        className={`h-1 shrink-0 cursor-row-resize touch-none ${
+          dragging ? "bg-gold" : "hover:bg-rule"
         }`}
-        style={{ marginTop: -3 }}
-      >
-        <span className="pointer-events-none absolute left-1/2 top-1/2 h-0.5 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-mute opacity-0 transition-opacity group-hover:opacity-100" />
-      </div>
+        style={{ marginTop: -2 }}
+      />
 
-      {/* header */}
-      <div className="flex h-[26px] shrink-0 items-center gap-2 px-3">
-        <div className="flex gap-0.5" role="tablist" aria-label="Panel view">
+      <div className="flex h-[30px] shrink-0 items-center px-3">
+        <div className="flex" role="tablist" aria-label="Panel view">
           {(["both", "calendar", "news"] as Tab[]).map((t) => (
             <button
               key={t}
@@ -149,8 +142,8 @@ export function BottomDock() {
                 setTab(t);
                 if (collapsed) setHeight(clamp(lastExpanded.current || DEFAULT_H));
               }}
-              className={`rounded px-2 py-0.5 text-[10px] font-semibold capitalize transition-colors ${
-                tab === t ? "bg-gold/15 text-gold-hi" : "text-mute hover:text-ink"
+              className={`px-2.5 py-0.5 text-[11px] capitalize transition-colors ${
+                tab === t ? "text-gold-hi" : "text-ink-4 hover:text-ink-2"
               }`}
             >
               {t}
@@ -161,35 +154,32 @@ export function BottomDock() {
         <div className="ml-auto flex items-center gap-1">
           <button
             onClick={expandFull}
-            title="Expand panel"
             aria-label="Expand panel"
-            className="flex size-5 items-center justify-center rounded text-mute transition-colors hover:text-ink"
+            className="flex size-6 items-center justify-center text-ink-4 transition-colors hover:text-ink"
           >
             <Maximize2 size={11} />
           </button>
           <button
             onClick={toggle}
-            title={collapsed ? "Expand panel" : "Collapse panel"}
             aria-label={collapsed ? "Expand panel" : "Collapse panel"}
             aria-expanded={!collapsed}
-            className="flex size-5 items-center justify-center rounded text-mute transition-colors hover:text-ink"
+            className="flex size-6 items-center justify-center text-ink-4 transition-colors hover:text-ink"
           >
             {collapsed ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
         </div>
       </div>
 
-      {/* content */}
       {!collapsed && (
-        <div className="min-h-0 flex-1 border-t border-hair-soft">
+        <div className="min-h-0 flex-1 border-t border-rule">
           {tab === "both" ? (
-            <div className="grid h-full min-h-0 grid-cols-1 divide-x divide-hair lg:grid-cols-2">
-              <div className="min-h-0 overflow-hidden">
+            <div className="grid h-full min-h-0 grid-cols-1 gap-px bg-rule lg:grid-cols-2">
+              <div className="min-h-0 overflow-hidden bg-surface">
                 <ErrorBoundary label="Calendar">
                   <EconomicCalendar />
                 </ErrorBoundary>
               </div>
-              <div className="min-h-0 overflow-hidden max-lg:hidden">
+              <div className="min-h-0 overflow-hidden bg-surface max-lg:hidden">
                 <ErrorBoundary label="News">
                   <NewsFeed />
                 </ErrorBoundary>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, CornerDownLeft } from "lucide-react";
+import { Search } from "lucide-react";
 import { useUiStore } from "@/stores/ui";
 import { useWorkspaceStore, type LayoutCount } from "@/stores/workspace";
 import { SYMBOLS } from "@/lib/market/symbols";
@@ -20,7 +20,6 @@ export function CommandPalette() {
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // global ⌘K / Ctrl+K
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -42,7 +41,7 @@ export function CommandPalette() {
 
   const actions = useMemo<Action[]>(() => {
     const close = () => setPalette(false);
-    const symbolActions: Action[] = SYMBOLS.map((s) => ({
+    const symbols: Action[] = SYMBOLS.map((s) => ({
       id: `sym-${s.symbol}`,
       label: s.symbol,
       sub: s.name,
@@ -51,23 +50,25 @@ export function CommandPalette() {
         close();
       },
     }));
-    const layoutActions: Action[] = ([1, 2, 4, 6, 8] as LayoutCount[]).map((n) => ({
+    const layouts: Action[] = ([1, 2, 4, 6, 8] as LayoutCount[]).map((n) => ({
       id: `layout-${n}`,
-      label: `Layout: ${n} ${n === 1 ? "chart" : "charts"}`,
-      sub: "Workspace",
+      label: `${n} ${n === 1 ? "chart" : "charts"}`,
+      sub: "Layout",
       run: () => {
         setLayout(n);
         clearFocus();
         close();
       },
     }));
-    return [...symbolActions, ...layoutActions];
+    return [...symbols, ...layouts];
   }, [loadSymbolIntoActive, setLayout, clearFocus, setPalette]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return actions;
-    return actions.filter((a) => a.label.toLowerCase().includes(q) || a.sub.toLowerCase().includes(q));
+    return actions.filter(
+      (a) => a.label.toLowerCase().includes(q) || a.sub.toLowerCase().includes(q),
+    );
   }, [query, actions]);
 
   if (!paletteOpen) return null;
@@ -89,15 +90,15 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 pt-[12vh] backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/60 pt-[14vh]"
       onMouseDown={() => setPalette(false)}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-hair bg-elevated shadow-2xl"
+        className="w-full max-w-lg border border-rule bg-elevated"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2.5 border-b border-hair-soft px-3.5 py-3">
-          <Search size={15} className="text-mute" />
+        <div className="flex items-center gap-3 border-b border-rule px-4 py-3">
+          <Search size={14} className="text-ink-4" />
           <input
             ref={inputRef}
             value={query}
@@ -106,32 +107,33 @@ export function CommandPalette() {
               setIndex(0);
             }}
             onKeyDown={onKeyDown}
-            placeholder="Search symbols or commands…"
-            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-mute-2"
+            placeholder="Search instruments and layouts"
+            className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-4"
           />
-          <kbd className="rounded border border-hair bg-surface px-1.5 py-0.5 font-mono text-[9px] text-mute-2">ESC</kbd>
+          <kbd className="t-num border border-rule px-1.5 py-0.5 text-[10px] text-ink-4">esc</kbd>
         </div>
 
-        <div className="max-h-[46vh] overflow-y-auto p-1.5">
+        <div className="max-h-[48vh] overflow-y-auto">
           {results.length === 0 ? (
-            <div className="px-3 py-6 text-center text-xs text-mute-2">No matches</div>
+            <p className="px-4 py-6 text-center text-[13px] text-ink-4">
+              Nothing matches “{query}”.
+            </p>
           ) : (
-            results.slice(0, 50).map((a, i) => (
+            results.slice(0, 60).map((a, i) => (
               <button
                 key={a.id}
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => a.run()}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${
-                  i === index ? "bg-gold/12" : ""
+                className={`flex w-full items-baseline gap-3 border-b border-rule-soft px-4 py-2.5 text-left transition-colors ${
+                  i === index ? "bg-raised" : ""
                 }`}
               >
-                <span className="flex items-baseline gap-2.5">
-                  <span className={`text-[12.5px] font-semibold ${i === index ? "text-gold-hi" : "text-ink"}`}>
-                    {a.label}
-                  </span>
-                  <span className="text-[10.5px] text-mute-2">{a.sub}</span>
+                <span
+                  className={`text-[13px] font-medium ${i === index ? "text-gold-hi" : "text-ink"}`}
+                >
+                  {a.label}
                 </span>
-                {i === index && <CornerDownLeft size={12} className="text-mute" />}
+                <span className="text-[12px] text-ink-4">{a.sub}</span>
               </button>
             ))
           )}

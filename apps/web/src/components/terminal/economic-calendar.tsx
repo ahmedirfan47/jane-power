@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarDays } from "lucide-react";
 
 interface CalendarEvent {
   id: string;
@@ -14,14 +13,14 @@ interface CalendarEvent {
   actual: string;
 }
 
-const IMPACT_DOT: Record<CalendarEvent["impact"], string> = {
+const IMPACT: Record<CalendarEvent["impact"], string> = {
   high: "bg-bear",
   medium: "bg-gold",
-  low: "bg-mute-2",
-  holiday: "bg-mute-2",
+  low: "bg-ink-4",
+  holiday: "bg-ink-4",
 };
 
-type Filter = "all" | "high" | "today";
+type Filter = "today" | "high" | "all";
 
 export function EconomicCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -42,7 +41,7 @@ export function EconomicCalendar() {
         .catch(() => alive && setState("empty"));
     };
     load();
-    const id = setInterval(load, 900000); // 15 min
+    const id = setInterval(load, 900_000);
     return () => {
       alive = false;
       clearInterval(id);
@@ -67,16 +66,16 @@ export function EconomicCalendar() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-hair-soft px-2.5 py-2">
-        <CalendarDays size={12} className="text-mute" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-mute">Calendar</span>
-        <div className="ml-auto flex gap-0.5">
+      <div className="flex h-8 shrink-0 items-center border-b border-rule px-3">
+        <span className="t-label text-[10px]">Calendar</span>
+        <div className="ml-auto flex">
           {(["today", "high", "all"] as Filter[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded px-1.5 py-0.5 text-[9.5px] font-semibold capitalize transition-colors ${
-                filter === f ? "bg-gold/15 text-gold-hi" : "text-mute-2 hover:text-mute"
+              aria-pressed={filter === f}
+              className={`px-2 py-0.5 text-[11px] capitalize transition-colors ${
+                filter === f ? "text-gold-hi" : "text-ink-4 hover:text-ink-2"
               }`}
             >
               {f}
@@ -86,31 +85,33 @@ export function EconomicCalendar() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {state === "loading" && <div className="p-3 text-[11px] text-mute-2">Loading events…</div>}
+        {state === "loading" && (
+          <p className="px-3 py-4 text-[13px] text-ink-4">Loading events…</p>
+        )}
         {state !== "loading" && shown.length === 0 && (
-          <div className="p-3 text-[11px] text-mute-2">No events for this filter.</div>
+          <p className="px-3 py-4 text-[13px] text-ink-4">
+            {filter === "today" ? "No releases scheduled today." : "No events for this filter."}
+          </p>
         )}
         {shown.map((e) => {
           const past = new Date(e.time).getTime() < now;
           return (
             <div
               key={e.id}
-              className={`grid grid-cols-[42px_30px_1fr_auto] items-center gap-2 border-b border-hair-soft px-2.5 py-1.5 ${
-                past ? "opacity-55" : ""
+              className={`flex items-center gap-3 border-b border-rule-soft px-3 py-2 ${
+                past ? "opacity-50" : ""
               }`}
             >
-              <span className="tnum text-[10px] text-mute">{fmtTime(e.time)}</span>
-              <span className="flex items-center gap-1">
-                <span className={`size-1.5 rounded-full ${IMPACT_DOT[e.impact]}`} />
-                <span className="text-[10px] font-semibold text-ink-dim">{e.currency}</span>
-              </span>
-              <span className="truncate text-[11px] text-ink" title={e.title}>
+              <span className="t-num w-11 shrink-0 text-[12px] text-ink-3">{fmtTime(e.time)}</span>
+              <span className={`size-1.5 shrink-0 ${IMPACT[e.impact]}`} aria-hidden />
+              <span className="w-8 shrink-0 text-[12px] font-medium text-ink-2">{e.currency}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] text-ink" title={e.title}>
                 {e.title}
               </span>
-              <span className="flex gap-2 text-[9.5px]">
-                {e.actual && <span className="tnum font-semibold text-gold-hi">A {e.actual}</span>}
-                {e.forecast && <span className="tnum text-mute">F {e.forecast}</span>}
-                {e.previous && <span className="tnum text-mute-2">P {e.previous}</span>}
+              <span className="flex shrink-0 items-baseline gap-3 text-[11px]">
+                {e.actual && <span className="t-num text-gold-hi">{e.actual}</span>}
+                {e.forecast && <span className="t-num text-ink-3">{e.forecast}</span>}
+                {e.previous && <span className="t-num text-ink-4">{e.previous}</span>}
               </span>
             </div>
           );

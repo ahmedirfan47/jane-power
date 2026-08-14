@@ -6,14 +6,14 @@
   --color-void: var(--c-void);
   --color-bg: var(--c-bg);
   --color-surface: var(--c-surface);
-  --color-surface-2: var(--c-surface-2);
+  --color-raised: var(--c-raised);
   --color-elevated: var(--c-elevated);
-  --color-hair: var(--c-hair);
-  --color-hair-soft: var(--c-hair-soft);
+  --color-rule: var(--c-rule);
+  --color-rule-soft: var(--c-rule-soft);
   --color-ink: var(--c-ink);
-  --color-ink-dim: var(--c-ink-dim);
-  --color-mute: var(--c-mute);
-  --color-mute-2: var(--c-mute-2);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-ink-4: var(--c-ink-4);
   --color-gold: var(--c-gold);
   --color-gold-hi: var(--c-gold-hi);
   --color-bull: var(--c-bull);
@@ -21,63 +21,69 @@
   --color-bear: var(--c-bear);
   --color-bear-hi: var(--c-bear-hi);
 
-  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-inter-tight), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 2px;
+  --radius-md: 3px;
 }
 
-/* ── dark (default) ───────────────────────────────── */
 :root,
 [data-theme="dark"] {
   color-scheme: dark;
-  --c-void: #08090c;
-  --c-bg: #0b0d12;
-  --c-surface: #0f1218;
-  --c-surface-2: #14181f;
-  --c-elevated: #191e27;
-  --c-hair: #212834;
-  --c-hair-soft: #171c24;
-  --c-ink: #e8ebf0;
-  --c-ink-dim: #b3bac6;
-  --c-mute: #8а93a1;
-  --c-mute-2: #626b7a;
-  --c-gold: #e0a43c;
-  --c-gold-hi: #f6c368;
-  --c-bull: #23b483;
-  --c-bull-hi: #35d89b;
-  --c-bear: #e2544f;
-  --c-bear-hi: #ff6f6a;
+  --c-void: #0a0a0b;
+  --c-bg: #0c0d0e;
+  --c-surface: #0e0f11;
+  --c-raised: #16171a;
+  --c-elevated: #1c1d21;
+  --c-rule: #232428;
+  --c-rule-soft: #171819;
+  --c-ink: #eceded;
+  --c-ink-2: #b8babd;
+  --c-ink-3: #82858a;
+  --c-ink-4: #5c5f64;
+  --c-gold: #c8963e;
+  --c-gold-hi: #e0b45f;
+  --c-bull: #2e9e6b;
+  --c-bull-hi: #3fbd84;
+  --c-bear: #cf4a45;
+  --c-bear-hi: #e56560;
 
-  --atmosphere: color-mix(in srgb, var(--c-gold) 6%, transparent);
-  --chart-grid: #161b21;
-  --chart-border: #212834;
-  --chart-text: #8a93a1;
+  --chart-grid: #161719;
+  --chart-rule: #232428;
+  --chart-text: #82858a;
 }
 
-/* ── light ────────────────────────────────────────── */
 [data-theme="light"] {
   color-scheme: light;
-  --c-void: #f7f8fa;
-  --c-bg: #ffffff;
+  --c-void: #f4f4f3;
+  --c-bg: #fafaf9;
   --c-surface: #ffffff;
-  --c-surface-2: #f2f4f7;
+  --c-raised: #f4f4f3;
   --c-elevated: #ffffff;
-  --c-hair: #dfe3ea;
-  --c-hair-soft: #eceff4;
-  --c-ink: #10151d;
-  --c-ink-dim: #3b4453;
-  --c-mute: #58616f;
-  --c-mute-2: #79828f;
-  --c-gold: #b4791a;
-  --c-gold-hi: #8f5f11;
-  --c-bull: #0f9b6c;
-  --c-bull-hi: #0a7f58;
-  --c-bear: #d13c37;
-  --c-bear-hi: #b32d29;
+  --c-rule: #d9d9d6;
+  --c-rule-soft: #e9e9e6;
+  --c-ink: #14151a;
+  --c-ink-2: #3d3f45;
+  --c-ink-3: #63666d;
+  --c-ink-4: #8b8e95;
+  --c-gold: #8a6420;
+  --c-gold-hi: #6d4e17;
+  --c-bull: #17805a;
+  --c-bull-hi: #10684a;
+  --c-bear: #bc3b36;
+  --c-bear-hi: #9c2f2b;
 
-  --atmosphere: transparent;
-  --chart-grid: #eceff4;
-  --chart-border: #dfe3ea;
-  --chart-text: #58616f;
+  --chart-grid: #eeeeec;
+  --chart-rule: #d9d9d6;
+  --chart-text: #63666d;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html,
@@ -87,25 +93,69 @@ body {
 
 body {
   margin: 0;
-  background-color: var(--c-void);
-  background-image: radial-gradient(900px 420px at 82% -8%, var(--atmosphere), transparent 60%);
+  background: var(--c-void);
   color: var(--c-ink);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  /* prevent iOS from inflating small terminal text */
+  -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-  /* stop rubber-band scroll bouncing the whole terminal on mobile */
   overscroll-behavior: none;
 }
 
+.t-display {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+.t-h1 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+.t-h2 {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+.t-body {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.t-small {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.t-label {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-3);
+}
+.t-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.01em;
+}
+
 ::selection {
-  background: color-mix(in srgb, var(--c-gold) 30%, transparent);
+  background: var(--c-gold);
+  color: var(--c-void);
 }
 
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--c-gold) 70%, transparent);
-  outline-offset: 1px;
+  outline: 1px solid var(--c-gold);
+  outline-offset: 2px;
 }
 
 @layer utilities {
@@ -122,27 +172,26 @@ body {
   }
 }
 
-/* scrollbars — thin, part of the furniture */
 ::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--c-hair);
-  border-radius: 5px;
-  border: 2px solid var(--c-void);
+  background: var(--c-rule);
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--c-mute-2);
+  background: var(--c-ink-4);
+  background-clip: content-box;
 }
 
-/* live-price flash cues */
 @keyframes flashUp {
   from {
-    background: color-mix(in srgb, var(--c-bull) 26%, transparent);
+    background: color-mix(in srgb, var(--c-bull) 22%, transparent);
   }
   to {
     background: transparent;
@@ -150,20 +199,19 @@ body {
 }
 @keyframes flashDown {
   from {
-    background: color-mix(in srgb, var(--c-bear) 26%, transparent);
+    background: color-mix(in srgb, var(--c-bear) 22%, transparent);
   }
   to {
     background: transparent;
   }
 }
 .flash-up {
-  animation: flashUp 0.45s ease-out;
+  animation: flashUp 400ms ease-out;
 }
 .flash-down {
-  animation: flashDown 0.45s ease-out;
+  animation: flashDown 400ms ease-out;
 }
 
-/* ticker marquee */
 @keyframes tape {
   from {
     transform: translateX(0);
@@ -171,6 +219,20 @@ body {
   to {
     transform: translateX(-50%);
   }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

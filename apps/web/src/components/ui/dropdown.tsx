@@ -7,7 +7,7 @@ export function Dropdown({
   trigger,
   children,
   align = "left",
-  width = 168,
+  width = 180,
 }: {
   trigger: ReactNode;
   children: (close: () => void) => ReactNode;
@@ -21,8 +21,15 @@ export function Dropdown({
     const onDoc = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   return (
@@ -30,15 +37,16 @@ export function Dropdown({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 rounded-md px-2 py-1 text-ink transition-colors hover:bg-surface-2"
+        aria-expanded={open}
+        className="flex items-center gap-1 px-1.5 py-1 text-ink transition-colors hover:text-ink"
       >
         {trigger}
-        <ChevronDown size={11} className="text-mute" />
+        <ChevronDown size={11} className="text-ink-4" />
       </button>
       {open && (
         <div
-          className="absolute z-50 mt-1 max-h-[320px] overflow-y-auto rounded-lg border border-hair bg-elevated p-1.5 shadow-2xl"
-          style={{ width, [align]: 0 }}
+          className="absolute z-50 mt-1 max-h-80 overflow-y-auto border border-rule bg-elevated py-1"
+          style={{ width, [align]: 0, borderRadius: "var(--radius-sm)" }}
         >
           {children(() => setOpen(false))}
         </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, X } from "lucide-react";
+import { X } from "lucide-react";
 import { MobileWatchlist } from "./mobile-watchlist";
 import { ThemeToggle } from "./theme-toggle";
 import { useFeedStore } from "@/stores/feed";
@@ -26,18 +26,19 @@ function ActivePrice() {
   const live = !!(m?.binance || m?.provider || m?.mt5);
 
   return (
-    <span className="flex items-baseline gap-1.5">
-      <span className="tnum text-[13px] font-bold">{fmtPrice(chart.symbol, q.last)}</span>
-      <span className={`tnum text-[11px] font-semibold ${up ? "text-bull-hi" : "text-bear-hi"}`}>
+    <div className="flex items-baseline gap-3">
+      <span className="font-display text-[15px] font-semibold tracking-tight text-ink">
+        {chart.symbol}
+      </span>
+      <span className="t-num text-[17px] text-ink">{fmtPrice(chart.symbol, q.last)}</span>
+      <span className={`t-num text-[13px] ${up ? "text-bull-hi" : "text-bear-hi"}`}>
         {up ? "+" : ""}
         {q.changePct.toFixed(2)}%
       </span>
-      {!live && (
-        <span className="rounded bg-surface-2 px-1 font-mono text-[8px] font-bold text-mute">
-          SIM
-        </span>
-      )}
-    </span>
+      <span className={`t-label ml-auto text-[10px] ${live ? "text-bull-hi" : "text-ink-4"}`}>
+        {live ? "Live" : "Simulated"}
+      </span>
+    </div>
   );
 }
 
@@ -45,42 +46,43 @@ export function MobileBar({ isGuest }: { isGuest: boolean }) {
   const { crypto, provider, mt5 } = useFeedStore();
   const { layout, setLayout, clearFocus } = useWorkspaceStore();
   const [sheet, setSheet] = useState(false);
-  const fxLive = provider === "live" || mt5 === "live";
+  const allLive = (provider === "live" || mt5 === "live") && crypto === "live";
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-hair bg-surface px-2">
-        <MobileWatchlist />
+      <header className="flex h-12 shrink-0 items-center border-b border-rule bg-surface">
+        <div className="flex h-full items-center border-r border-rule">
+          <MobileWatchlist />
+        </div>
 
-        <span className="flex shrink-0 items-baseline gap-1">
-          <span className="text-gold">◆</span>
-          <span className="font-mono text-[11px] font-bold tracking-[0.08em]">JP</span>
+        <span className="px-3 font-display text-[14px] font-semibold tracking-tight">
+          jane<span className="text-gold">·</span>power
         </span>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex h-full items-center">
           <span
-            className={`size-1.5 rounded-full ${
-              fxLive && crypto === "live" ? "bg-bull-hi" : "bg-gold"
-            }`}
-            title={fxLive && crypto === "live" ? "All feeds live" : "Some feeds simulated"}
+            className={`size-1.5 ${allLive ? "bg-bull-hi" : "bg-gold"}`}
+            title={allLive ? "All feeds live" : "Some feeds simulated"}
             aria-hidden
           />
 
           <button
             onClick={() => setSheet(true)}
             aria-label="Chart layout"
-            className="flex h-9 items-center gap-1 rounded-lg border border-hair px-2 text-mute active:bg-surface-2"
+            className="ml-3 flex h-full items-center gap-1.5 border-l border-rule px-3 text-ink-3 active:bg-raised"
           >
-            <LayoutGrid size={14} />
-            <span className="tnum text-[12px] font-bold">{layout}</span>
+            <span className="t-label text-[10px]">Charts</span>
+            <span className="t-num text-[14px] text-ink">{layout}</span>
           </button>
 
-          <ThemeToggle />
+          <div className="flex h-full items-center border-l border-rule px-3">
+            <ThemeToggle />
+          </div>
 
           {isGuest && (
             <Link
               href="/login"
-              className="rounded-lg bg-gold px-2.5 py-1.5 text-[12px] font-semibold text-void"
+              className="flex h-full items-center border-l border-rule bg-ink px-4 text-[13px] font-medium text-void"
             >
               Sign in
             </Link>
@@ -88,35 +90,37 @@ export function MobileBar({ isGuest }: { isGuest: boolean }) {
         </div>
       </header>
 
-      {/* live price strip for the active chart */}
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-hair bg-bg px-3">
+      {/* active instrument readout */}
+      <div className="flex h-11 shrink-0 items-center border-b border-rule bg-bg px-3">
         <ActivePrice />
       </div>
 
-      {/* layout picker sheet */}
       {sheet && (
-        <div className="fixed inset-0 z-[95] flex items-end bg-black/60" onClick={() => setSheet(false)}>
+        <div
+          className="fixed inset-0 z-[95] flex items-end bg-black/70"
+          onClick={() => setSheet(false)}
+        >
           <div
-            className="w-full rounded-t-2xl border-t border-hair bg-elevated pb-6"
+            className="w-full border-t border-rule bg-elevated pb-8"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-hair-soft px-4 py-3">
-              <span className="text-sm font-semibold">Charts open</span>
+            <div className="flex items-center justify-between border-b border-rule px-4 py-3">
+              <span className="t-h2 text-ink">Charts open</span>
               <button
                 onClick={() => setSheet(false)}
                 aria-label="Close"
-                className="flex size-9 items-center justify-center rounded-lg text-mute active:bg-surface-2"
+                className="flex size-11 items-center justify-center text-ink-3 active:text-ink"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <p className="px-4 pt-3 text-[11px] leading-relaxed text-mute">
-              On mobile one chart shows at a time — use the arrows below the chart to move between
-              them.
+            <p className="px-4 pt-4 text-[13px] leading-relaxed text-ink-3">
+              One chart shows at a time on a phone. Use the arrows below the chart to move
+              between them.
             </p>
 
-            <div className="flex gap-2 px-4 pt-3">
+            <div className="mt-4 grid grid-cols-5 gap-px border-y border-rule bg-rule">
               {LAYOUTS.map((n) => (
                 <button
                   key={n}
@@ -126,8 +130,8 @@ export function MobileBar({ isGuest }: { isGuest: boolean }) {
                     setSheet(false);
                   }}
                   aria-pressed={layout === n}
-                  className={`tnum h-12 flex-1 rounded-xl text-[15px] font-bold transition-colors ${
-                    layout === n ? "bg-gold text-void" : "bg-surface-2 text-mute active:bg-surface"
+                  className={`t-num h-14 text-[16px] transition-colors ${
+                    layout === n ? "bg-gold text-void" : "bg-elevated text-ink-2 active:bg-raised"
                   }`}
                 >
                   {n}

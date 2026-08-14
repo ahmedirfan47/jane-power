@@ -13,9 +13,10 @@ export function Button({
     <button
       type={type}
       disabled={pending}
-      className="w-full rounded-lg bg-gold px-4 py-2.5 text-sm font-semibold text-bg transition hover:bg-gold-bright disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full bg-gold px-4 py-2.5 text-[14px] font-medium text-void transition-colors hover:bg-gold-hi disabled:cursor-not-allowed disabled:opacity-50"
+      style={{ borderRadius: "var(--radius-sm)" }}
     >
-      {pending ? "Please wait…" : children}
+      {pending ? "Working…" : children}
     </button>
   );
 }

@@ -16,8 +16,8 @@ export function TextField({
   minLength?: number;
 }) {
   return (
-    <label className="mb-4 block">
-      <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
+    <label className="mb-5 block">
+      <span className="t-label mb-2 block text-[10px]">{label}</span>
       <input
         name={name}
         type={type}
@@ -25,7 +25,8 @@ export function TextField({
         required={required}
         autoComplete={autoComplete}
         minLength={minLength}
-        className="w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-sm text-txt outline-none transition placeholder:text-muted-2 focus:border-gold/60"
+        className="w-full border border-rule bg-bg px-3 py-2.5 text-[14px] text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-ink-4"
+        style={{ borderRadius: "var(--radius-sm)" }}
       />
     </label>
   );
