@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createChart,
   CandlestickSeries,
@@ -23,6 +23,7 @@ import { META } from "@/lib/market/symbols";
 import { SYMBOL_TO_BINANCE, fetchKlines } from "@/lib/market/binance";
 import { fetchMt5Candles } from "@/lib/market/mt5";
 import { fetchProviderCandles } from "@/lib/market/provider";
+import { ChartSkeleton } from "./chart-skeleton";
 
 /** Reads live values from the design system so charts follow the theme exactly. */
 function palette() {
@@ -35,7 +36,6 @@ function palette() {
     bull: v("--c-bull", "#2e9e6b"),
     bear: v("--c-bear", "#cf4a45"),
     gold: v("--c-gold", "#c8963e"),
-    void: v("--c-void", "#0a0a0b"),
   };
 }
 
@@ -66,6 +66,8 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
   const countRef = useRef(0);
   const realRef = useRef(false);
   const requestRef = useRef(0);
+
+  const [loading, setLoading] = useState(true);
 
   const quote = useMarketStore((s) => s.quotes[symbol]);
   const theme = useThemeStore((s) => s.theme);
@@ -114,7 +116,6 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
           labelBackgroundColor: C.gold,
         },
       },
-      handleScale: { axisPressedMouseMove: { time: true, price: true } },
     });
 
     chartRef.current = chart;
@@ -181,6 +182,8 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     // guards against a slow earlier fetch painting over a newer one
     const requestId = ++requestRef.current;
     const isStale = () => requestId !== requestRef.current;
+
+    setLoading(true);
 
     const C = palette();
     const volUp = volumeTint(C.bull);
@@ -264,6 +267,7 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
       rawRef.current = raw;
       realRef.current = real;
       countRef.current = 0;
+      setLoading(false);
 
       if (kindRef.current === "value") {
         (price as ISeriesApi<"Line">).setData(raw.map((d) => ({ time: sec(d.t), value: d.c })));
@@ -412,5 +416,10 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     });
   }, [last, type, symbol, tf]);
 
-  return <div ref={containerRef} className="absolute inset-0" />;
+  return (
+    <>
+      <div ref={containerRef} className="absolute inset-0" />
+      {loading && <ChartSkeleton />}
+    </>
+  );
 }

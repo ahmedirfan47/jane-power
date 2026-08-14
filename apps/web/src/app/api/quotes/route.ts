@@ -33,16 +33,20 @@ export interface ProviderQuote {
   low: number;
 }
 
+/**
+ * Upstream refresh interval. The provider's free tier allows 800 calls/day
+ * (~one per 108s for 24h coverage). Lower this for fresher data at the cost
+ * of running out of quota later in the day.
+ *   30_000  → ~2,880/day  (fresh, dies after ~7h)
+ *   60_000  → ~1,440/day  (dies after ~13h)
+ *   110_000 → ~785/day    (safe for 24h)
+ */
+const TTL_MS = 30_000;
+
 let cache: { at: number; quotes: ProviderQuote[] } = { at: 0, quotes: [] };
 let inFlight: Promise<ProviderQuote[]> | null = null;
-
-/**
- * Twelve Data's free tier allows 800 credits/day. One batched call covers every
- * symbol, so 45s ≈ 1,900 calls/day — above the cap, which means the quota can
- * run out late in the day and stale cached values are served until it resets.
- * Raise this to 120_000 for guaranteed 24/7 coverage, or upgrade the plan.
- */
-const TTL_MS = 45_000;
+let quotaExhausted = false;
+let quotaResetAt = 0;
 
 async function fetchUpstream(key: string): Promise<ProviderQuote[]> {
   const symbols = Object.values(SYMBOL_MAP).join(",");
@@ -57,10 +61,14 @@ async function fetchUpstream(key: string): Promise<ProviderQuote[]> {
     throw new Error("unexpected provider response");
   }
 
-  // Errors come back as a single object carrying a numeric `code`.
   const asError = json as { code?: unknown; message?: unknown };
   if (typeof asError.code === "number") {
     const detail = typeof asError.message === "string" ? asError.message : "provider error";
+    // 429 means the daily allowance is spent — back off until tomorrow
+    if (asError.code === 429) {
+      quotaExhausted = true;
+      quotaResetAt = Date.now() + 60 * 60 * 1000;
+    }
     throw new Error(detail);
   }
 
@@ -81,11 +89,11 @@ async function fetchUpstream(key: string): Promise<ProviderQuote[]> {
 }
 
 export async function GET(request: Request) {
-  const limited = rateLimit(clientKey(request, "quotes"), 120, 60_000);
+  const limited = rateLimit(clientKey(request, "quotes"), 180, 60_000);
   if (!limited.ok) {
     return NextResponse.json(
-      { quotes: cache.quotes, error: "rate_limited" },
-      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "30" } },
+      { quotes: cache.quotes, error: "rate_limited", ageMs: Date.now() - cache.at },
+      { status: 429, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -97,28 +105,41 @@ export async function GET(request: Request) {
     );
   }
 
+  if (quotaExhausted && Date.now() > quotaResetAt) quotaExhausted = false;
+
   const age = Date.now() - cache.at;
-  if (age < TTL_MS && cache.quotes.length) {
+  const fresh = age < TTL_MS && cache.quotes.length > 0;
+
+  if (fresh || (quotaExhausted && cache.quotes.length)) {
     return NextResponse.json(
-      { quotes: cache.quotes, cached: true, ageMs: age },
-      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=90" } },
+      {
+        quotes: cache.quotes,
+        cached: true,
+        ageMs: age,
+        stale: quotaExhausted,
+      },
+      { headers: { "Cache-Control": "no-store" } },
     );
   }
 
   try {
-    // collapse concurrent misses into a single upstream call
     inFlight ??= fetchUpstream(key).finally(() => {
       inFlight = null;
     });
     const quotes = await inFlight;
     if (quotes.length) cache = { at: Date.now(), quotes };
     return NextResponse.json(
-      { quotes, cached: false, ageMs: 0 },
-      { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=90" } },
+      { quotes, cached: false, ageMs: 0, stale: false },
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch {
     return NextResponse.json(
-      { quotes: cache.quotes, error: "fetch_failed", stale: true },
+      {
+        quotes: cache.quotes,
+        error: "fetch_failed",
+        stale: true,
+        ageMs: Date.now() - cache.at,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   }
