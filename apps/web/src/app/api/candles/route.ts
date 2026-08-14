@@ -23,6 +23,20 @@ const INTERVAL_MAP: Record<string, string> = {
   "1d": "1day",
 };
 
+/**
+ * Cache per timeframe. Short intervals need frequent refreshes; long ones
+ * barely change. These are historical bars only — the current price always
+ * comes from the live quote, so this never decides what "now" costs.
+ */
+const TTL_BY_TF: Record<string, number> = {
+  "1m": 30_000,
+  "5m": 60_000,
+  "15m": 120_000,
+  "1h": 300_000,
+  "4h": 600_000,
+  "1d": 900_000,
+};
+
 interface TdBar {
   datetime?: string;
   open?: string;
@@ -42,8 +56,8 @@ interface Candle {
 
 /**
  * Twelve Data returns "YYYY-MM-DD HH:mm:ss" for intraday and "YYYY-MM-DD"
- * for daily, both without a timezone. Parse explicitly as UTC instead of
- * relying on Date's inconsistent handling of these shapes.
+ * for daily, both without a timezone. Parse explicitly as UTC rather than
+ * relying on Date's inconsistent handling of these two shapes.
  */
 function parseDatetime(raw?: string): number {
   if (!raw) return NaN;
@@ -71,20 +85,22 @@ function parseDatetime(raw?: string): number {
 }
 
 const cache = new Map<string, { at: number; candles: Candle[] }>();
-const TTL_MS = 300_000;
 
 export async function GET(request: Request) {
-  const limited = rateLimit(clientKey(request, "candles"), 60, 60_000);
+  const limited = rateLimit(clientKey(request, "candles"), 120, 60_000);
   if (!limited.ok) {
     return NextResponse.json(
       { candles: [], error: "rate_limited" },
-      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "60" } },
+      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "30" } },
     );
   }
 
   const key = process.env.TWELVEDATA_API_KEY;
   if (!key) {
-    return NextResponse.json({ candles: [], error: "no_key" });
+    return NextResponse.json(
+      { candles: [], error: "no_key" },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const { searchParams } = new URL(request.url);
@@ -94,22 +110,34 @@ export async function GET(request: Request) {
   const tdSymbol = SYMBOL_MAP[symbol];
   const interval = INTERVAL_MAP[tf];
   if (!tdSymbol || !interval) {
-    return NextResponse.json({ candles: [], error: "unsupported" });
+    return NextResponse.json(
+      { candles: [], error: "unsupported" },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const cacheKey = `${symbol}:${tf}`;
+  const ttl = TTL_BY_TF[tf] ?? 300_000;
   const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.at < TTL_MS) {
-    return NextResponse.json({ candles: hit.candles, cached: true });
+  if (hit && Date.now() - hit.at < ttl) {
+    return NextResponse.json(
+      { candles: hit.candles, cached: true, ageMs: Date.now() - hit.at },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   try {
     const res = await fetch(
-      `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${interval}&outputsize=300&timezone=UTC&apikey=${key}`,
+      `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(
+        tdSymbol,
+      )}&interval=${interval}&outputsize=300&timezone=UTC&apikey=${key}`,
       { cache: "no-store" },
     );
     if (!res.ok) {
-      return NextResponse.json({ candles: hit?.candles ?? [], error: "upstream" });
+      return NextResponse.json(
+        { candles: hit?.candles ?? [], error: "upstream", status: res.status },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const json = (await res.json()) as {
@@ -119,14 +147,17 @@ export async function GET(request: Request) {
     };
 
     if (typeof json.code === "number" || !json.values) {
-      return NextResponse.json({
-        candles: hit?.candles ?? [],
-        error: "provider",
-        message: typeof json.message === "string" ? json.message : "",
-      });
+      return NextResponse.json(
+        {
+          candles: hit?.candles ?? [],
+          error: "provider",
+          message: typeof json.message === "string" ? json.message : "",
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
-    // newest-first upstream; charts need oldest-first
+    // upstream returns newest-first; charts need oldest-first
     const candles: Candle[] = json.values
       .map((b) => ({
         t: parseDatetime(b.datetime),
@@ -143,8 +174,15 @@ export async function GET(request: Request) {
       .sort((a, b) => a.t - b.t);
 
     if (candles.length) cache.set(cacheKey, { at: Date.now(), candles });
-    return NextResponse.json({ candles });
+
+    return NextResponse.json(
+      { candles, cached: false, ageMs: 0 },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch {
-    return NextResponse.json({ candles: hit?.candles ?? [], error: "fetch_failed" });
+    return NextResponse.json(
+      { candles: hit?.candles ?? [], error: "fetch_failed" },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
 }

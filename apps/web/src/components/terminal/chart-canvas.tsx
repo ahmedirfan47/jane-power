@@ -264,6 +264,16 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
         });
       if (!raw.length) return;
 
+      // Pin the newest bar to the live quote before first paint, so the chart
+      // never opens showing a price that disagrees with the header.
+      const liveNow = useMarketStore.getState().quotes[symbol]?.last;
+      if (liveNow !== undefined && raw.length) {
+        const tip = raw[raw.length - 1]!;
+        tip.c = liveNow;
+        if (liveNow > tip.h) tip.h = liveNow;
+        if (liveNow < tip.l) tip.l = liveNow;
+      }
+
       rawRef.current = raw;
       realRef.current = real;
       countRef.current = 0;
@@ -360,21 +370,18 @@ export function ChartCanvas({ symbol, tf, type }: { symbol: string; tf: string; 
     const vol = volRef.current;
     if (!raw.length || !price || !vol || last === undefined) return;
 
-    const meta = META[symbol];
-
-    // Provider history refreshes on its own schedule and its quote is a delayed
-    // snapshot — writing ticks onto it makes the chart disagree with the real
-    // candle, differently on every timeframe. Leave that data alone.
-    const providerOnly = !!meta?.provider && !meta?.binance && !meta?.mt5;
-    if (providerOnly && realRef.current) return;
-
     const C = palette();
     const bar = raw[raw.length - 1]!;
+
+    // The live quote is the single source of truth for the current price on
+    // every timeframe. Pinning the forming bar's close to it means 1m, 1h and
+    // 4h can never disagree about what the market is doing right now.
     bar.c = last;
     if (last > bar.h) bar.h = last;
     if (last < bar.l) bar.l = last;
 
-    // only simulated series invent new bars; real feeds get them from the source
+    // Only simulated series invent new bars. Real feeds receive new bars from
+    // their source on the refresh schedule above.
     if (!realRef.current) {
       countRef.current += 1;
       if (countRef.current >= 6) {
